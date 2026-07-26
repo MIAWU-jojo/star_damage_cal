@@ -2,7 +2,7 @@
 
 ## Project
 
-`star_damage_cal` — Honkai: Star Rail direct-damage calculator (P0) with **Neo Brutalism** UI.
+`star_damage_cal` — Honkai: Star Rail direct-damage calculator + team workshop (Neo Brutalism UI).
 
 ## Commands
 
@@ -18,10 +18,16 @@ npm run build
 - UI must follow `docs/ui-neobrutalism.md` (Neo Brutalism / Neubrutalism).
 - Required: thick black borders, hard offset shadows (no blur), flat high-contrast fills, oversized display type.
 - Forbidden: gradients, soft shadows, large border-radius, glassy SaaS look.
-- Damage math lives in `src/engine/` as pure functions; keep it UI-agnostic and covered by vitest.
-- Formula source: Huiji wiki 伤害计算公式 (direct damage zones for P0).
+- Damage / team math lives in `src/engine/` as pure functions; keep UI-agnostic and covered by vitest.
+- Formula source: Huiji wiki 伤害计算公式.
+- Track remaining work in `TODO.md` and keep it updated when finishing items.
 
-## P0 scope
+## Routes
 
-In: direct damage, crit modes, enemy templates, manual buffs, zone breakdown, marginal gains.  
-Out: DOT/break, full character DB, team optimizer (later phases).
+- `#/` — damage calculator
+- `#/team` — team workshop (buff aggregate, coverage, single-swap optimize)
+- `#/formula` — formula explain page
+
+## Scope notes
+
+Support / character presets are **simplified approximations** for workshop math, not full kit parsers.
