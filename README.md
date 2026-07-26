@@ -6,6 +6,8 @@
 
 线上：https://star.miawu.eu.cc/
 
+![伤害计算页截图](docs/screenshot-calc.png)
+
 ## 功能
 
 | 路由 | 用途 |
