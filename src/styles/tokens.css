@@ -1,0 +1,39 @@
+:root {
+  --nb-black: #000000;
+  --nb-ink: #111111;
+  --nb-paper: #fffdf5;
+  --nb-cream: #ffe56b;
+  --nb-coral: #ff6b6b;
+  --nb-sky: #74b9ff;
+  --nb-mint: #88d498;
+  --nb-muted: #5c5c5c;
+
+  --surface-0: var(--nb-paper);
+  --surface-1: #ffffff;
+  --surface-accent: var(--nb-cream);
+  --surface-danger: var(--nb-coral);
+  --surface-info: var(--nb-sky);
+
+  --text-primary: var(--nb-ink);
+  --text-muted: var(--nb-muted);
+  --text-on-accent: var(--nb-black);
+
+  --border-strong: 3px solid var(--nb-black);
+  --shadow-hard: 4px 4px 0 var(--nb-black);
+  --shadow-hard-lg: 6px 6px 0 var(--nb-black);
+  --shadow-press: 3px 3px 0 var(--nb-black);
+
+  --font-display: "Archivo Black", "Noto Sans SC", sans-serif;
+  --font-body: "Public Sans", "Noto Sans SC", sans-serif;
+  --font-mono: "Space Mono", "IBM Plex Mono", monospace;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  --ease-nb: cubic-bezier(0.2, 0.8, 0.2, 1);
+}

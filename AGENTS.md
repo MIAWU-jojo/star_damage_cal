@@ -1,26 +1,27 @@
 # AGENTS.md
 
-## Project status
+## Project
 
-`star_damage_cal` is currently a greenfield repository. The only product file on `main` is a placeholder `README.md`. There is no application code, dependency manifest, test suite, or runnable service yet.
+`star_damage_cal` — Honkai: Star Rail direct-damage calculator (P0) with **Neo Brutalism** UI.
 
-## Environment
-
-- Cloud agents use `.cursor/environment.json`.
-- On boot, `./scripts/verify-env.sh` confirms the toolchain (Node, npm/pnpm, Python, git, curl).
-- When application manifests are added (`package.json`, `requirements.txt`, `pyproject.toml`, etc.), that script will install dependencies automatically.
-
-## Working here
-
-1. Create a feature branch from `main`.
-2. Scaffold the app (web UI, CLI, or API) and its dependency manifests.
-3. Update `.cursor/environment.json` `install` / `terminals` if the app needs a persistent start command.
-4. Keep `scripts/verify-env.sh` idempotent and fast.
-
-## Verification
+## Commands
 
 ```bash
-./scripts/verify-env.sh
+npm install
+npm run dev
+npm test
+npm run build
 ```
 
-Until an app exists, that command is the environment smoke test.
+## Constraints
+
+- UI must follow `docs/ui-neobrutalism.md` (Neo Brutalism / Neubrutalism).
+- Required: thick black borders, hard offset shadows (no blur), flat high-contrast fills, oversized display type.
+- Forbidden: gradients, soft shadows, large border-radius, glassy SaaS look.
+- Damage math lives in `src/engine/` as pure functions; keep it UI-agnostic and covered by vitest.
+- Formula source: Huiji wiki 伤害计算公式 (direct damage zones for P0).
+
+## P0 scope
+
+In: direct damage, crit modes, enemy templates, manual buffs, zone breakdown, marginal gains.  
+Out: DOT/break, full character DB, team optimizer (later phases).

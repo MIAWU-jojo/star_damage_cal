@@ -1,5 +1,10 @@
 {
   "name": "star_damage_cal",
-  "install": "./scripts/verify-env.sh",
-  "terminals": []
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev"
+    }
+  ]
 }
