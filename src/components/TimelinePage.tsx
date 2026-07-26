@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
 import {
   COMMON_BREAKPOINTS,
@@ -532,7 +532,10 @@ export function TimelinePage() {
               ? 'Buff 覆盖'
               : '行动事件'}
           </span>
-          <span className="nb-damage__value">
+          <span
+            key={`${combat.coverage.length > 0 ? Math.min(...combat.coverage.map((c) => c.coverageRatio)).toFixed(3) : timeline.events.length}`}
+            className="nb-damage__value"
+          >
             {combat.coverage.length > 0
               ? `${(Math.min(...combat.coverage.map((c) => c.coverageRatio)) * 100).toFixed(0)}%`
               : String(timeline.events.length)}
@@ -631,6 +634,7 @@ export function TimelinePage() {
               className={`nb-av-events__row is-${e.kind}${
                 e.covered === false ? ' is-miss' : e.covered ? ' is-cover' : ''
               }`}
+              style={{ '--i': idx } as CSSProperties}
             >
               <span className="nb-av-events__t">AV {formatAv(e.time)}</span>
               <span className={`nb-av-events__kind is-${e.kind}`}>

@@ -389,7 +389,9 @@ export function RotationPage() {
 
         <div className="nb-damage nb-sticky-summary">
           <span className="nb-damage__label">一轮总伤</span>
-          <span className="nb-damage__value">{formatInt(result.totalDamage)}</span>
+          <span key={result.totalDamage.toFixed(2)} className="nb-damage__value">
+            {formatInt(result.totalDamage)}
+          </span>
         </div>
 
         <div className="nb-substats">

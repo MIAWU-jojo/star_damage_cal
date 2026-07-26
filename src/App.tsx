@@ -48,12 +48,12 @@ export default function App() {
           Star <span>Damage</span>
         </h1>
         <p className="nb-lead">
-          崩坏·星穹铁道直伤 / DOT / 击破演算、配队乘区与<strong>行动条配速</strong>。按灰机 Wiki
-          硬拆伤害，看清该补增伤、减防还是降抗。
+          崩坏·星穹铁道直伤 / DOT / 击破演算、配队乘区与<strong>可解释配速</strong>。按灰机 Wiki
+          硬拆伤害，看清该补增伤、减防还是降抗——以及少一速会丢什么。
         </p>
       </header>
 
-      <main>
+      <main key={route} className="nb-page">
         {route === 'calc' && <Calculator />}
         {route === 'team' && <TeamWorkshop />}
         {route === 'timeline' && <TimelinePage />}
