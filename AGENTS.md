@@ -26,7 +26,7 @@ npm run build
 
 - `#/` — damage calculator
 - `#/team` — team workshop (buff aggregate, coverage, swap, combo search, compare)
-- `#/timeline` — action-value timeline / speed tuning (P4.1)
+- `#/timeline` — AV event timeline / speed tuning + buff coverage (P4.2)
 - `#/rotation` — skill rotation (direct / DOT / break rails + toughness)
 - `#/build` — substat advice + Fribbels / relic JSON import
 - `#/formula` — formula explain page
@@ -34,3 +34,9 @@ npm run build
 ## Scope notes
 
 Presets and rails are **simplified approximations**, not full kit parsers. No GPU relic optimizer.
+
+Product differentiation vs Fribbels / Asagi: **explainable speed-tuning & rotation decisions** (why a SPD works, where order breaks, what one SPD costs). Roadmap in `TODO.md` (P4.2 buff windows → P4.3 timeline×damage → P5.1 speed-window solver).
+
+## Workspace
+
+`WorkspaceProvider` (`src/state/WorkspaceContext.tsx`) shares carry / enemy / team / speeds / buff rules / snapshots across pages. Timeline share via `?w=` query.

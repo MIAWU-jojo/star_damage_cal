@@ -4,9 +4,14 @@ import {
   COMMON_BREAKPOINTS,
   checkFirstActionOrder,
   lapAv,
-  simulateTimeline,
   type AvActor,
 } from '../engine/actionValue'
+import {
+  BUFF_PRESET_TEMPLATES,
+  simulateCombatEvents,
+  type BuffRule,
+  type AvEventKind,
+} from '../engine/avEvents'
 import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatAv(n: number): string {
@@ -15,6 +20,29 @@ function formatAv(n: number): string {
 
 function formatSpd(n: number): string {
   return n.toFixed(2)
+}
+
+function eventKindLabel(kind: AvEventKind): string {
+  switch (kind) {
+    case 'buffStart':
+      return 'Buff'
+    case 'buffExpire':
+      return '到期'
+    case 'ult':
+      return '终结技'
+    case 'action':
+      return '行动'
+    case 'speedChange':
+      return '变速'
+    case 'advance':
+      return '拉条'
+    case 'delay':
+      return '推条'
+    case 'break':
+      return '击破'
+    default:
+      return kind
+  }
 }
 
 type Slot = {
@@ -26,70 +54,91 @@ type Slot = {
   role: AvActor['role']
 }
 
-const DEFAULT_SLOTS: Slot[] = [
-  {
-    id: 's1',
-    name: '辅助 A',
-    speed: 161,
-    advancePct: 0,
-    advanceAtStart: false,
-    role: 'support',
-  },
-  {
-    id: 's2',
-    name: '辅助 B',
-    speed: 145,
-    advancePct: 0,
-    advanceAtStart: false,
-    role: 'support',
-  },
-  {
-    id: 'c1',
-    name: '主 C',
-    speed: 134,
-    advancePct: 0,
-    advanceAtStart: false,
-    role: 'carry',
-  },
-  {
-    id: 'v1',
-    name: '生存',
-    speed: 148,
-    advancePct: 0,
-    advanceAtStart: false,
-    role: 'survival',
-  },
-]
+const SLOT_IDS = ['s1', 's2', 'c1', 'v1'] as const
+
+function buildDefaultSlots(
+  carryName: string,
+  carrySpeed: number,
+  supportSpeeds: { s1: number; s2: number; v1: number },
+): Slot[] {
+  return [
+    {
+      id: 's1',
+      name: '辅助 A',
+      speed: supportSpeeds.s1,
+      advancePct: 0,
+      advanceAtStart: false,
+      role: 'support',
+    },
+    {
+      id: 's2',
+      name: '辅助 B',
+      speed: supportSpeeds.s2,
+      advancePct: 0,
+      advanceAtStart: false,
+      role: 'support',
+    },
+    {
+      id: 'c1',
+      name: carryName,
+      speed: carrySpeed,
+      advancePct: 0,
+      advanceAtStart: false,
+      role: 'carry',
+    },
+    {
+      id: 'v1',
+      name: '生存',
+      speed: supportSpeeds.v1,
+      advancePct: 0,
+      advanceAtStart: false,
+      role: 'survival',
+    },
+  ]
+}
 
 export function TimelinePage() {
-  const { carryPresetId, carrySpeed, setCarrySpeed, enemyTemplateId } = useWorkspace()
+  const {
+    carryPresetId,
+    carrySpeed,
+    setCarrySpeed,
+    supportSpeeds,
+    setSupportSpeeds,
+    buffRules,
+    setBuffRules,
+    saveSnapshot,
+    snapshots,
+    loadSnapshot,
+    deleteSnapshot,
+    encodeShare,
+  } = useWorkspace()
   const carryPreset =
     CHARACTER_PRESETS.find((c) => c.id === carryPresetId) ?? CHARACTER_PRESETS[0]
+
   const [slots, setSlots] = useState<Slot[]>(() =>
-    DEFAULT_SLOTS.map((s) =>
-      s.role === 'carry'
-        ? { ...s, name: carryPreset.name, speed: carrySpeed }
-        : s,
-    ),
+    buildDefaultSlots(carryPreset.name, carrySpeed, supportSpeeds),
   )
   const [enemyOn, setEnemyOn] = useState(false)
   const [enemySpeed, setEnemySpeed] = useState(144)
   const [cycles, setCycles] = useState(2)
   const [orderBefore, setOrderBefore] = useState('s1')
   const [orderAfter, setOrderAfter] = useState('c1')
+  const [snapshotName, setSnapshotName] = useState('')
+  const [shareCopied, setShareCopied] = useState(false)
 
   useEffect(() => {
     setSlots((prev) =>
-      prev.map((s) =>
-        s.role === 'carry'
-          ? { ...s, name: carryPreset.name, speed: carrySpeed }
-          : s,
-      ),
+      prev.map((s) => {
+        if (s.role === 'carry') {
+          return { ...s, name: carryPreset.name, speed: carrySpeed }
+        }
+        if (s.id === 's1') return { ...s, speed: supportSpeeds.s1 }
+        if (s.id === 's2') return { ...s, speed: supportSpeeds.s2 }
+        if (s.id === 'v1') return { ...s, speed: supportSpeeds.v1 }
+        return s
+      }),
     )
-  }, [carryPreset.name, carrySpeed])
-
-  // keep enemyTemplateId referenced for future P4.3 linkage
-  void enemyTemplateId
+  }, [carryPreset.name, carrySpeed, supportSpeeds])
 
   const actors: AvActor[] = useMemo(() => {
     const list: AvActor[] = slots
@@ -113,10 +162,18 @@ export function TimelinePage() {
     return list
   }, [enemyOn, enemySpeed, slots])
 
-  const timeline = useMemo(
-    () => simulateTimeline({ actors, cycles }),
-    [actors, cycles],
+  const combat = useMemo(
+    () =>
+      simulateCombatEvents({
+        actors,
+        buffs: buffRules,
+        cycles,
+        carryId: 'c1',
+      }),
+    [actors, buffRules, cycles],
   )
+
+  const timeline = combat.base
 
   const order = useMemo(
     () => checkFirstActionOrder(timeline, orderBefore, orderAfter),
@@ -125,14 +182,57 @@ export function TimelinePage() {
 
   const updateSlot = (id: string, patch: Partial<Slot>) => {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+    if (patch.speed != null) {
+      if (id === 'c1') setCarrySpeed(patch.speed)
+      if (id === 's1' || id === 's2' || id === 'v1') {
+        setSupportSpeeds((prev) => ({ ...prev, [id]: patch.speed! }))
+      }
+    }
   }
+
+  const addBuffFromTemplate = (templateId: string, sourceActorId: string) => {
+    const tpl = BUFF_PRESET_TEMPLATES.find((t) => t.id === templateId)
+    if (!tpl) return
+    const rule: BuffRule = {
+      id: `${tpl.id}-${Date.now()}`,
+      name: tpl.name,
+      sourceActorId,
+      triggerActions: tpl.triggerActions,
+      asUlt: tpl.asUlt,
+      durationKind: tpl.durationKind,
+      duration: tpl.duration,
+      coversCarry: tpl.coversCarry,
+      note: tpl.note,
+    }
+    setBuffRules((prev) => [...prev, rule])
+  }
+
+  const removeBuff = (id: string) => {
+    setBuffRules((prev) => prev.filter((b) => b.id !== id))
+  }
+
+  const copyShareLink = async () => {
+    const encoded = encodeShare()
+    const url = `${window.location.origin}${window.location.pathname}?w=${encoded}#/timeline`
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      window.setTimeout(() => setShareCopied(false), 2000)
+    } catch {
+      window.prompt('复制分享链接', url)
+    }
+  }
+
+  const [addTpl, setAddTpl] = useState(BUFF_PRESET_TEMPLATES[0]?.id ?? '')
+  const [addSource, setAddSource] = useState('s1')
 
   return (
     <div className="nb-layout">
       <section className="nb-panel">
         <h2 className="nb-panel__title">行动条工坊</h2>
         <p className="nb-panel__hint">
-          跑道 10000 · 首轮 150 AV、之后每轮 100。看配速是否乱序、谁先手、每轮几动。
+          跑道 10000 · 首轮 150 AV、之后每轮 100。事件流标出 Buff 开始/到期与主 C
+          覆盖；重点看「为什么乱轴 / 哪里漏覆盖」。
         </p>
 
         <div className="nb-section">
@@ -194,9 +294,7 @@ export function TimelinePage() {
                     step={0.1}
                     value={s.speed}
                     onChange={(e) => {
-                      const speed = Number(e.target.value)
-                      updateSlot(s.id, { speed })
-                      if (s.role === 'carry') setCarrySpeed(speed)
+                      updateSlot(s.id, { speed: Number(e.target.value) })
                     }}
                   />
                 </div>
@@ -253,6 +351,80 @@ export function TimelinePage() {
         </div>
 
         <div className="nb-section">
+          <div className="nb-section__label">Buff 窗口规则</div>
+          <p className="nb-panel__hint">
+            不解析完整技能：选模板挂到施放者，时间线标出开始/到期与主 C
+            覆盖。
+          </p>
+          <div className="nb-grid">
+            <div className="nb-field">
+              <label htmlFor="buff-tpl">模板</label>
+              <select
+                id="buff-tpl"
+                value={addTpl}
+                onChange={(e) => setAddTpl(e.target.value)}
+              >
+                {BUFF_PRESET_TEMPLATES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="nb-field">
+              <label htmlFor="buff-src">施放者</label>
+              <select
+                id="buff-src"
+                value={addSource}
+                onChange={(e) => setAddSource(e.target.value)}
+              >
+                {slots.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}（{s.id}）
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="nb-btn"
+            onClick={() => addBuffFromTemplate(addTpl, addSource)}
+          >
+            添加 Buff 规则
+          </button>
+          {buffRules.length === 0 ? (
+            <p className="nb-template-note">尚未添加规则。试试「同谐战技窗」挂到辅助 A。</p>
+          ) : (
+            <ul className="nb-buff-rules">
+              {buffRules.map((b) => {
+                const src = slots.find((s) => s.id === b.sourceActorId)
+                return (
+                  <li key={b.id}>
+                    <strong>{b.name}</strong>
+                    <span className="nb-swap-zones">
+                      {' '}
+                      · {src?.name ?? b.sourceActorId} ·{' '}
+                      {b.durationKind === 'sourceTurns'
+                        ? `${b.duration} 回合`
+                        : `${b.duration} AV`}
+                      {b.coversCarry ? ' · 覆盖主 C' : ''}
+                    </span>
+                    <button
+                      type="button"
+                      className="nb-btn nb-btn--ghost"
+                      onClick={() => removeBuff(b.id)}
+                    >
+                      移除
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="nb-section">
           <div className="nb-section__label">首动顺序检查</div>
           <div className="nb-grid">
             <div className="nb-field">
@@ -288,18 +460,136 @@ export function TimelinePage() {
             {order.message}
           </p>
         </div>
+
+        <div className="nb-section">
+          <div className="nb-section__label">方案快照 / 分享</div>
+          <div className="nb-grid">
+            <div className="nb-field">
+              <label htmlFor="snap-name">快照名</label>
+              <input
+                id="snap-name"
+                value={snapshotName}
+                placeholder="如 134 首轮 2 动"
+                onChange={(e) => setSnapshotName(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="nb-btn-row">
+            <button
+              type="button"
+              className="nb-btn"
+              onClick={() => {
+                saveSnapshot(snapshotName)
+                setSnapshotName('')
+              }}
+            >
+              保存快照
+            </button>
+            <button type="button" className="nb-btn nb-btn--ghost" onClick={copyShareLink}>
+              {shareCopied ? '已复制链接' : '复制分享链接'}
+            </button>
+          </div>
+          {snapshots.length > 0 && (
+            <ul className="nb-buff-rules">
+              {snapshots.map((s) => (
+                <li key={s.id}>
+                  <strong>{s.name}</strong>
+                  <span className="nb-swap-zones">
+                    {' '}
+                    · {new Date(s.savedAt).toLocaleString()}
+                  </span>
+                  <button
+                    type="button"
+                    className="nb-btn nb-btn--ghost"
+                    onClick={() => loadSnapshot(s.id)}
+                  >
+                    加载
+                  </button>
+                  <button
+                    type="button"
+                    className="nb-btn nb-btn--ghost"
+                    onClick={() => deleteSnapshot(s.id)}
+                  >
+                    删除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       <section className="nb-panel nb-result">
-        <h2 className="nb-panel__title">时间线</h2>
+        <h2 className="nb-panel__title">事件时间线</h2>
         <p className="nb-panel__hint">
-          结束于 AV {formatAv(timeline.endTime)}（前 {cycles} 轮）。
+          结束于 AV {formatAv(timeline.endTime)}（前 {cycles} 轮）· 事件{' '}
+          {combat.events.length} 条。
         </p>
 
         <div className="nb-damage nb-sticky-summary">
-          <span className="nb-damage__label">事件数</span>
-          <span className="nb-damage__value">{timeline.events.length}</span>
+          <span className="nb-damage__label">
+            {combat.coverage.length > 0
+              ? 'Buff 覆盖'
+              : '行动事件'}
+          </span>
+          <span className="nb-damage__value">
+            {combat.coverage.length > 0
+              ? `${(Math.min(...combat.coverage.map((c) => c.coverageRatio)) * 100).toFixed(0)}%`
+              : String(timeline.events.length)}
+          </span>
         </div>
+
+        {combat.diagnostics.length > 0 && (
+          <>
+            <div className="nb-section__label">诊断</div>
+            <ul className="nb-diag-list">
+              {combat.diagnostics.map((d, i) => (
+                <li key={`${i}-${d}`} className="nb-diag-list__item is-warn">
+                  {d}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {combat.coverage.length > 0 && (
+          <>
+            <div className="nb-section__label">Buff 覆盖主 C</div>
+            <div className="nb-table-wrap">
+              <table className="nb-table">
+                <thead>
+                  <tr>
+                    <th>Buff</th>
+                    <th>覆盖</th>
+                    <th>漏动</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {combat.coverage.map((c) => (
+                    <tr key={c.buffId}>
+                      <td>
+                        <strong>{c.buffName}</strong>
+                      </td>
+                      <td
+                        className={
+                          c.coverageRatio >= 1 - 1e-9 ? 'nb-ok' : 'nb-bad'
+                        }
+                      >
+                        {c.carryActionsCovered}/{c.carryActionsTotal}（
+                        {(c.coverageRatio * 100).toFixed(0)}%）
+                      </td>
+                      <td>
+                        {c.missedActionIndexes.length
+                          ? c.missedActionIndexes.join(', ')
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <div className="nb-section__label">每轮行动次数</div>
         <div className="nb-table-wrap">
@@ -333,17 +623,27 @@ export function TimelinePage() {
           </table>
         </div>
 
-        <div className="nb-section__label">出手序列</div>
+        <div className="nb-section__label">事件流</div>
         <ol className="nb-av-events">
-          {timeline.events.map((e, idx) => (
-            <li key={`${e.time}-${e.actorId}-${idx}`}>
+          {combat.events.map((e, idx) => (
+            <li
+              key={`${e.time}-${e.kind}-${e.actorId ?? e.buffId}-${idx}`}
+              className={`nb-av-events__row is-${e.kind}${
+                e.covered === false ? ' is-miss' : e.covered ? ' is-cover' : ''
+              }`}
+            >
               <span className="nb-av-events__t">AV {formatAv(e.time)}</span>
+              <span className={`nb-av-events__kind is-${e.kind}`}>
+                {eventKindLabel(e.kind)}
+              </span>
               <span>
-                {e.actorName}
-                <em className="nb-swap-zones">
-                  {' '}
-                  · 第 {e.actionIndex} 动 · 轮 {e.cycle}
-                </em>
+                {e.label}
+                {e.covered === true && (
+                  <em className="nb-av-tag is-cover"> · 覆盖</em>
+                )}
+                {e.covered === false && (
+                  <em className="nb-av-tag is-miss"> · 漏覆盖</em>
+                )}
               </span>
             </li>
           ))}
@@ -376,6 +676,9 @@ export function TimelinePage() {
             </tbody>
           </table>
         </div>
+        <p className="nb-template-note">
+          槽位 id：{SLOT_IDS.join(' / ')}（分享与规则用）
+        </p>
       </section>
     </div>
   )
