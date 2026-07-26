@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
 import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
 import {
@@ -11,7 +11,6 @@ import {
   BUFF_PRESET_TEMPLATES,
   simulateCombatEvents,
   type BuffRule,
-  type AvEventKind,
 } from '../engine/avEvents'
 import {
   DEFAULT_LOOP,
@@ -21,6 +20,7 @@ import {
   type UltStrategy,
 } from '../engine/timelineCombat'
 import { useWorkspace } from '../state/WorkspaceContext'
+import { AvHorizontalTimeline } from './AvHorizontalTimeline'
 
 function formatAv(n: number): string {
   return n.toFixed(2)
@@ -34,29 +34,6 @@ function formatInt(n: number): string {
   return Math.round(n).toLocaleString('zh-CN')
 }
 
-function eventKindLabel(kind: AvEventKind): string {
-  switch (kind) {
-    case 'buffStart':
-      return 'Buff'
-    case 'buffExpire':
-      return '到期'
-    case 'ult':
-      return '终结技'
-    case 'action':
-      return '行动'
-    case 'speedChange':
-      return '变速'
-    case 'advance':
-      return '拉条'
-    case 'delay':
-      return '推条'
-    case 'break':
-      return '击破'
-    default:
-      return kind
-  }
-}
-
 type Slot = {
   id: string
   name: string
@@ -65,8 +42,6 @@ type Slot = {
   advanceAtStart: boolean
   role: AvActor['role']
 }
-
-const SLOT_IDS = ['s1', 's2', 'c1', 'v1'] as const
 
 function buildDefaultSlots(
   carryName: string,
@@ -296,6 +271,7 @@ export function TimelinePage() {
   }
 
   return (
+    <div className="nb-timeline-page">
     <div className="nb-layout">
       <section className="nb-panel">
         <h2 className="nb-panel__title">行动条工坊</h2>
@@ -654,10 +630,10 @@ export function TimelinePage() {
       </section>
 
       <section className="nb-panel nb-result">
-        <h2 className="nb-panel__title">事件时间线</h2>
+        <h2 className="nb-panel__title">结算摘要</h2>
         <p className="nb-panel__hint">
           结束于 AV {formatAv(timeline.endTime)}（前 {cycles} 轮）· 事件{' '}
-          {combat.events.length} 条。
+          {combat.events.length} 条。下方为横向时间轴。
         </p>
 
         <div className="nb-damage nb-sticky-summary">
@@ -847,33 +823,6 @@ export function TimelinePage() {
           </table>
         </div>
 
-        <div className="nb-section__label">事件流</div>
-        <ol className="nb-av-events">
-          {combat.events.map((e, idx) => (
-            <li
-              key={`${e.time}-${e.kind}-${e.actorId ?? e.buffId}-${idx}`}
-              className={`nb-av-events__row is-${e.kind}${
-                e.covered === false ? ' is-miss' : e.covered ? ' is-cover' : ''
-              }`}
-              style={{ '--i': idx } as CSSProperties}
-            >
-              <span className="nb-av-events__t">AV {formatAv(e.time)}</span>
-              <span className={`nb-av-events__kind is-${e.kind}`}>
-                {eventKindLabel(e.kind)}
-              </span>
-              <span>
-                {e.label}
-                {e.covered === true && (
-                  <em className="nb-av-tag is-cover"> · 覆盖</em>
-                )}
-                {e.covered === false && (
-                  <em className="nb-av-tag is-miss"> · 漏覆盖</em>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-
         <div className="nb-section__label">常用速度阈值</div>
         <div className="nb-table-wrap">
           <table className="nb-table">
@@ -901,10 +850,17 @@ export function TimelinePage() {
             </tbody>
           </table>
         </div>
-        <p className="nb-template-note">
-          槽位 id：{SLOT_IDS.join(' / ')}（分享与规则用）
-        </p>
       </section>
+    </div>
+
+    <section className="nb-panel nb-hrail-panel">
+      <h2 className="nb-panel__title">事件时间线</h2>
+      <AvHorizontalTimeline
+        combat={combat}
+        actors={actors}
+        cycles={cycles}
+      />
+    </section>
     </div>
   )
 }

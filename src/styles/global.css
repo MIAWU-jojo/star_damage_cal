@@ -80,8 +80,7 @@ body::after {
   .nb-page .nb-panel,
   .nb-damage__value,
   .nb-zone,
-  .nb-av-events li,
-  .nb-diag-list__item,
+  .nb-hrail__buff,
   .nb-section__label {
     animation: none !important;
   }
@@ -1018,33 +1017,283 @@ select {
   box-shadow: 3px 3px 0 var(--nb-black);
 }
 
-.nb-av-events {
-  margin: 0 0 var(--space-4);
-  padding: 0;
-  list-style: none;
+.nb-timeline-page {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  max-height: 22rem;
-  overflow: auto;
+  gap: var(--space-5);
+}
+
+.nb-hrail-panel {
+  width: 100%;
+}
+
+.nb-hrail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.nb-hrail__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.nb-hrail__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
   border: var(--border-strong);
   background: #fff;
   box-shadow: var(--shadow-press);
+  padding: 0.65rem 0.5rem 0.85rem;
+  outline: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.nb-av-events li {
+.nb-hrail__scroll:focus {
+  background: #fffef8;
+}
+
+.nb-hrail__canvas {
+  position: relative;
+  min-height: 12rem;
+  padding-top: 1.6rem;
+}
+
+.nb-hrail__ruler {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1.4rem;
+  pointer-events: none;
+}
+
+.nb-hrail__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.nb-hrail__cycle {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: var(--nb-cream);
+  border: 2px solid var(--nb-black);
+  padding: 0 0.25rem;
+  z-index: 2;
+}
+
+.nb-hrail__cycle em {
+  font-style: normal;
+}
+
+.nb-hrail__lane {
+  display: grid;
+  grid-template-columns: 5.6rem 1fr;
+  gap: 0.45rem;
+  align-items: center;
+  min-height: 3.1rem;
+  margin-top: 0.35rem;
+}
+
+.nb-hrail__lane.is-buff {
+  min-height: 2.4rem;
+}
+
+.nb-hrail__lane.is-meta {
+  min-height: 2.2rem;
+}
+
+.nb-hrail__lane-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.25rem 0.35rem;
+  border: 2px solid var(--nb-black);
+  background: var(--nb-sky);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.nb-hrail__lane.is-carry .nb-hrail__lane-label {
+  background: var(--nb-coral);
+}
+
+.nb-hrail__lane.is-support .nb-hrail__lane-label {
+  background: var(--nb-mint);
+}
+
+.nb-hrail__lane.is-buff .nb-hrail__lane-label,
+.nb-hrail__lane.is-meta .nb-hrail__lane-label {
+  background: var(--nb-cream);
+}
+
+.nb-hrail__lane-label span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.nb-hrail__lane-body {
+  position: relative;
+  height: 2.6rem;
+}
+
+.nb-hrail__lane.is-buff .nb-hrail__lane-body,
+.nb-hrail__lane.is-meta .nb-hrail__lane-body {
+  height: 1.9rem;
+}
+
+.nb-hrail__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  background: var(--nb-black);
+  transform: translateY(-50%);
+}
+
+.nb-hrail__vline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--nb-black);
+  opacity: 0.35;
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+.nb-hrail__buff {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1.15rem;
+  background: var(--nb-mint);
+  border: 2px solid var(--nb-black);
+  box-shadow: 2px 2px 0 var(--nb-black);
+  overflow: hidden;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 0.25rem;
+  animation: nb-slide 280ms var(--ease-nb) both;
+}
+
+.nb-hrail__buff span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.nb-hrail__node {
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  min-width: 2.6rem;
+  padding: 0.15rem 0.25rem;
+  border: 2px solid var(--nb-black);
+  background: #fff;
+  box-shadow: 2px 2px 0 var(--nb-black);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-nb), box-shadow 120ms var(--ease-nb);
+}
+
+.nb-hrail__node:hover,
+.nb-hrail__node.is-selected {
+  transform: translate(-50%, calc(-50% - 3px));
+  box-shadow: 4px 4px 0 var(--nb-black);
+  z-index: 4;
+}
+
+.nb-hrail__node.is-cover {
+  background: #e8fff2;
+}
+
+.nb-hrail__node.is-miss {
+  background: #ffe8ec;
+}
+
+.nb-hrail__node.is-ult {
+  background: var(--nb-cream);
+}
+
+.nb-hrail__node-av {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nb-hrail__node-mark {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.nb-hrail__pin {
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid var(--nb-black);
+  background: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--nb-black);
+  z-index: 2;
+}
+
+.nb-hrail__pin.is-buffStart {
+  background: var(--nb-mint);
+}
+
+.nb-hrail__pin.is-buffExpire {
+  background: var(--nb-coral);
+}
+
+.nb-hrail__pin.is-selected,
+.nb-hrail__pin:hover {
+  transform: translate(-50%, calc(-50% - 2px));
+  box-shadow: 3px 3px 0 var(--nb-black);
+}
+
+.nb-hrail__detail {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  align-items: baseline;
-  padding: 0.45rem 0.65rem;
-  border-bottom: 2px solid var(--nb-black);
-  animation: nb-slide 240ms var(--ease-nb) both;
-  animation-delay: calc(min(var(--i, 0), 16) * 28ms);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: var(--border-strong);
+  background: #fff;
+  box-shadow: var(--shadow-press);
+  font-size: 0.95rem;
+  min-height: 3rem;
 }
 
-.nb-av-events li:last-child {
-  border-bottom: none;
+.nb-hrail__detail-buffs {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .nb-av-events__t {
@@ -1077,14 +1326,6 @@ select {
 
 .nb-av-events__kind.is-ult {
   background: var(--nb-cream);
-}
-
-.nb-av-events__row.is-miss {
-  background: #ffe8ec;
-}
-
-.nb-av-events__row.is-cover {
-  background: #e8fff2;
 }
 
 .nb-av-tag.is-cover {
