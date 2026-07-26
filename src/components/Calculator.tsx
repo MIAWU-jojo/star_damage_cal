@@ -590,7 +590,7 @@ export function Calculator() {
         </h2>
         <p className="nb-panel__hint">最终伤害 + 乘区对照 + 来源标签。</p>
 
-        <div className="nb-damage">
+        <div className="nb-damage nb-sticky-summary">
           <span className="nb-damage__label">最终伤害</span>
           <span key={result.finalDamage.toFixed(2)} className="nb-damage__value">
             {formatInt(result.finalDamage)}

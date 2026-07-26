@@ -56,6 +56,12 @@ body::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .nb-damage__value,
+  .nb-zone {
+    animation: none !important;
   }
 }
 
@@ -308,6 +314,19 @@ select {
 .nb-result {
   position: sticky;
   top: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .nb-result {
+    position: static;
+  }
+
+  .nb-sticky-summary,
+  .nb-result > .nb-damage {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
 }
 
 .nb-damage {
@@ -770,4 +789,92 @@ select {
 .nb-formula__warn p {
   margin: 0;
 }
+
+.nb-textarea {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.65rem 0.75rem;
+  border: var(--border-strong);
+  box-shadow: var(--shadow-press);
+  background: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.nb-rot-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: var(--space-3);
+}
+
+.nb-rot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.nb-rot-item {
+  padding: var(--space-3);
+  border: var(--border-strong);
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--nb-black);
+}
+
+.nb-rot-item__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.nb-rot-item__ops {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.nb-table-wrap {
+  overflow-x: auto;
+  border: var(--border-strong);
+  box-shadow: var(--shadow-hard);
+  background: #fff;
+}
+
+.nb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.nb-table th,
+.nb-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 2px solid var(--nb-black);
+  text-align: left;
+  vertical-align: top;
+}
+
+.nb-table th {
+  background: var(--nb-cream);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nb-table__sub {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+}
+
+.nb-nav__links {
+  flex-wrap: wrap;
+}
+
 

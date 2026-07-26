@@ -19,6 +19,7 @@ import {
   teamDamage,
   type CoverageLevel,
 } from '../engine/team'
+import { compareTeams, searchSupportCombos } from '../engine/teamSearch'
 
 function formatInt(n: number): string {
   return Math.round(n).toLocaleString('zh-CN')
@@ -53,6 +54,7 @@ export function TeamWorkshop() {
     () => [...ENEMY_TEMPLATES[0].weaknesses],
   )
   const [filterByWeakness, setFilterByWeakness] = useState(false)
+  const [compareIds, setCompareIds] = useState<string[]>([])
 
   const carry = CHARACTER_PRESETS.find((c) => c.id === carryId) ?? CHARACTER_PRESETS[0]
   const enemy = ENEMY_TEMPLATES.find((e) => e.id === enemyId) ?? ENEMY_TEMPLATES[0]
@@ -116,6 +118,56 @@ export function TeamWorkshop() {
   }, [carry, enemy, team, pool])
 
   const survivalWarnings = team.filter((s) => s.isSurvival)
+
+  const searchPool = useMemo(() => {
+    const base = filterByWeakness
+      ? SUPPORT_PRESETS.filter((s) => matchesWeaknessConstraint(s, weaknesses))
+      : SUPPORT_PRESETS
+    return base.filter((s) => poolIds.includes(s.id) || slotIds.includes(s.id))
+  }, [filterByWeakness, poolIds, slotIds, weaknesses])
+
+  const comboResults = useMemo(() => {
+    return searchSupportCombos({
+      attacker: carry.attacker,
+      defender: {
+        level: enemy.level,
+        defense: enemy.defense,
+        resistance: enemy.resistance,
+        hasToughness: enemy.hasToughness,
+      },
+      pool: searchPool.length >= 3 ? searchPool : SUPPORT_PRESETS.filter((s) => !s.isSurvival),
+      topN: 6,
+      penalizeSurvival: true,
+    })
+  }, [carry, enemy, searchPool])
+
+  const compareRows = useMemo(() => {
+    const teams = [
+      {
+        label: '当前队',
+        supports: team,
+      },
+      ...compareIds.map((key, i) => {
+        const ids = key.split('|')
+        return {
+          label: `候选 ${i + 1}`,
+          supports: ids
+            .map((id) => getSupport(id))
+            .filter((s): s is SupportPreset => Boolean(s)),
+        }
+      }),
+    ]
+    return compareTeams({
+      attacker: carry.attacker,
+      defender: {
+        level: enemy.level,
+        defense: enemy.defense,
+        resistance: enemy.resistance,
+        hasToughness: enemy.hasToughness,
+      },
+      teams,
+    })
+  }, [carry, compareIds, enemy, team])
 
   const setSlot = (index: number, id: string) => {
     setSlotIds((prev) => {
@@ -359,6 +411,85 @@ export function TeamWorkshop() {
             </li>
           ))}
         </ul>
+
+        <div className="nb-section__label">三人辅组合搜索</div>
+        <p className="nb-template-note">
+          在候选池（含当前队员）内搜索 Top 组合；池过大时自动改贪心束搜索。
+        </p>
+        {comboResults.length === 0 ? (
+          <p className="nb-template-note">候选不足 3 人。</p>
+        ) : (
+          <ul className="nb-marginals">
+            {comboResults.map((c) => {
+              const key = [...c.supportIds].sort().join('|')
+              const onCompare = compareIds.includes(key)
+              return (
+                <li key={key}>
+                  <span>
+                    {c.supportNames.join(' + ')}
+                    {c.survivalCount > 0 ? ` · 生存${c.survivalCount}` : ''}
+                  </span>
+                  <span className="nb-swap-actions">
+                    <strong>{formatInt(c.damage)}</strong>
+                    <button
+                      type="button"
+                      className="nb-btn"
+                      onClick={() => {
+                        setSlotIds(c.supportIds)
+                        setPoolIds((prev) => [
+                          ...new Set([
+                            ...prev.filter((id) => !c.supportIds.includes(id)),
+                            ...slotIds.filter((id) => !c.supportIds.includes(id)),
+                          ]),
+                        ])
+                      }}
+                    >
+                      应用
+                    </button>
+                    <button
+                      type="button"
+                      className="nb-btn"
+                      onClick={() =>
+                        setCompareIds((prev) =>
+                          onCompare ? prev.filter((x) => x !== key) : [...prev, key].slice(-3),
+                        )
+                      }
+                    >
+                      {onCompare ? '移出对比' : '加入对比'}
+                    </button>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        <div className="nb-section__label">配队对比</div>
+        <div className="nb-table-wrap">
+          <table className="nb-table">
+            <thead>
+              <tr>
+                <th>队伍</th>
+                <th>期望伤害</th>
+                <th>乘区覆盖</th>
+                <th>破韧</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compareRows.map((row) => (
+                <tr key={row.label + row.supportIds.join('-')}>
+                  <td>
+                    <strong>{row.label}</strong>
+                    <div className="nb-table__sub">{row.supportNames.join(' · ') || '—'}</div>
+                  </td>
+                  <td>{formatInt(row.damage)}</td>
+                  <td>{row.coverageSummary}</td>
+                  <td>{row.brokenHint}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   )
