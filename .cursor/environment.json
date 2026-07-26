@@ -1,0 +1,10 @@
+{
+  "name": "star_damage_cal",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev"
+    }
+  ]
+}
