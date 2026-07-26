@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
+import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
 import {
   COMMON_BREAKPOINTS,
   checkFirstActionOrder,
@@ -12,6 +13,13 @@ import {
   type BuffRule,
   type AvEventKind,
 } from '../engine/avEvents'
+import {
+  DEFAULT_LOOP,
+  DEFAULT_RESOURCES,
+  compareCarrySpeedDamage,
+  simulateTimelineCombat,
+  type UltStrategy,
+} from '../engine/timelineCombat'
 import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatAv(n: number): string {
@@ -20,6 +28,10 @@ function formatAv(n: number): string {
 
 function formatSpd(n: number): string {
   return n.toFixed(2)
+}
+
+function formatInt(n: number): string {
+  return Math.round(n).toLocaleString('zh-CN')
 }
 
 function eventKindLabel(kind: AvEventKind): string {
@@ -106,6 +118,7 @@ export function TimelinePage() {
     setSupportSpeeds,
     buffRules,
     setBuffRules,
+    enemyTemplateId,
     saveSnapshot,
     snapshots,
     loadSnapshot,
@@ -114,6 +127,8 @@ export function TimelinePage() {
   } = useWorkspace()
   const carryPreset =
     CHARACTER_PRESETS.find((c) => c.id === carryPresetId) ?? CHARACTER_PRESETS[0]
+  const enemyTemplate =
+    ENEMY_TEMPLATES.find((e) => e.id === enemyTemplateId) ?? ENEMY_TEMPLATES[0]
 
   const [slots, setSlots] = useState<Slot[]>(() =>
     buildDefaultSlots(carryPreset.name, carrySpeed, supportSpeeds),
@@ -125,6 +140,13 @@ export function TimelinePage() {
   const [orderAfter, setOrderAfter] = useState('c1')
   const [snapshotName, setSnapshotName] = useState('')
   const [shareCopied, setShareCopied] = useState(false)
+  const [addTpl, setAddTpl] = useState(BUFF_PRESET_TEMPLATES[0]?.id ?? '')
+  const [addSource, setAddSource] = useState('s1')
+  const [settleOn, setSettleOn] = useState(true)
+  const [spStart, setSpStart] = useState(DEFAULT_RESOURCES.spStart)
+  const [energyStart, setEnergyStart] = useState(0)
+  const [ultStrategy, setUltStrategy] = useState<UltStrategy>('buffCovered')
+  const [coveredBoostPct, setCoveredBoostPct] = useState(50)
 
   useEffect(() => {
     setSlots((prev) =>
@@ -172,6 +194,56 @@ export function TimelinePage() {
       }),
     [actors, buffRules, cycles],
   )
+
+  const settleInput = useMemo(
+    () => ({
+      actors,
+      buffs: buffRules,
+      cycles,
+      carryId: 'c1',
+      loop: DEFAULT_LOOP,
+      resources: {
+        ...DEFAULT_RESOURCES,
+        spStart,
+        energyStart,
+        ultStrategy,
+        coveredDamageBoost: coveredBoostPct / 100,
+      },
+      attacker: carryPreset.attacker,
+      defender: {
+        level: enemyTemplate.level,
+        defense: enemyTemplate.defense,
+        resistance: enemyTemplate.resistance,
+        hasToughness: enemyTemplate.hasToughness,
+        maxToughness: 100,
+      },
+    }),
+    [
+      actors,
+      buffRules,
+      carryPreset.attacker,
+      coveredBoostPct,
+      cycles,
+      energyStart,
+      enemyTemplate,
+      spStart,
+      ultStrategy,
+    ],
+  )
+
+  const settled = useMemo(
+    () => (settleOn ? simulateTimelineCombat(settleInput) : null),
+    [settleInput, settleOn],
+  )
+
+  const speedExplain = useMemo(() => {
+    if (!settleOn) return null
+    const carry = slots.find((s) => s.role === 'carry')?.speed ?? carrySpeed
+    const lo = Math.floor(carry)
+    const hi = lo + 1
+    const { a, b, deltaRatio } = compareCarrySpeedDamage(settleInput, lo, hi)
+    return { lo, hi, a, b, deltaRatio }
+  }, [carrySpeed, settleInput, settleOn, slots])
 
   const timeline = combat.base
 
@@ -222,9 +294,6 @@ export function TimelinePage() {
       window.prompt('复制分享链接', url)
     }
   }
-
-  const [addTpl, setAddTpl] = useState(BUFF_PRESET_TEMPLATES[0]?.id ?? '')
-  const [addSource, setAddSource] = useState('s1')
 
   return (
     <div className="nb-layout">
@@ -425,6 +494,71 @@ export function TimelinePage() {
         </div>
 
         <div className="nb-section">
+          <div className="nb-section__label">时间线 × 轮次结算（P4.3）</div>
+          <p className="nb-panel__hint">
+            主 C 按默认循环「战技 → 普攻 → 战技」吃行动次数；缺 SP 会降级，Buff
+            覆盖加增伤，能量满按策略插终结技。
+          </p>
+          <label className="nb-check">
+            <input
+              type="checkbox"
+              checked={settleOn}
+              onChange={(e) => setSettleOn(e.target.checked)}
+            />
+            启用轮次伤害结算
+          </label>
+          {settleOn && (
+            <div className="nb-grid" style={{ marginTop: '0.75rem' }}>
+              <div className="nb-field">
+                <label htmlFor="sp-start">初始战技点</label>
+                <input
+                  id="sp-start"
+                  type="number"
+                  min={0}
+                  max={5}
+                  value={spStart}
+                  onChange={(e) => setSpStart(Number(e.target.value))}
+                />
+              </div>
+              <div className="nb-field">
+                <label htmlFor="en-start">初始能量</label>
+                <input
+                  id="en-start"
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={energyStart}
+                  onChange={(e) => setEnergyStart(Number(e.target.value))}
+                />
+              </div>
+              <div className="nb-field">
+                <label htmlFor="ult-strat">终结技策略</label>
+                <select
+                  id="ult-strat"
+                  value={ultStrategy}
+                  onChange={(e) => setUltStrategy(e.target.value as UltStrategy)}
+                >
+                  <option value="buffCovered">Buff 内满能放</option>
+                  <option value="immediate">满能立即放</option>
+                  <option value="manualOnly">不自动放</option>
+                </select>
+              </div>
+              <div className="nb-field">
+                <label htmlFor="cov-boost">覆盖时增伤 %</label>
+                <input
+                  id="cov-boost"
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={coveredBoostPct}
+                  onChange={(e) => setCoveredBoostPct(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="nb-section">
           <div className="nb-section__label">首动顺序检查</div>
           <div className="nb-grid">
             <div className="nb-field">
@@ -528,25 +662,112 @@ export function TimelinePage() {
 
         <div className="nb-damage nb-sticky-summary">
           <span className="nb-damage__label">
-            {combat.coverage.length > 0
-              ? 'Buff 覆盖'
-              : '行动事件'}
+            {settled
+              ? '时间线总伤'
+              : combat.coverage.length > 0
+                ? 'Buff 覆盖'
+                : '行动事件'}
           </span>
           <span
-            key={`${combat.coverage.length > 0 ? Math.min(...combat.coverage.map((c) => c.coverageRatio)).toFixed(3) : timeline.events.length}`}
+            key={
+              settled
+                ? settled.totalDamage.toFixed(1)
+                : `${combat.coverage.length > 0 ? Math.min(...combat.coverage.map((c) => c.coverageRatio)).toFixed(3) : timeline.events.length}`
+            }
             className="nb-damage__value"
           >
-            {combat.coverage.length > 0
-              ? `${(Math.min(...combat.coverage.map((c) => c.coverageRatio)) * 100).toFixed(0)}%`
-              : String(timeline.events.length)}
+            {settled
+              ? formatInt(settled.totalDamage)
+              : combat.coverage.length > 0
+                ? `${(Math.min(...combat.coverage.map((c) => c.coverageRatio)) * 100).toFixed(0)}%`
+                : String(timeline.events.length)}
           </span>
         </div>
 
-        {combat.diagnostics.length > 0 && (
+        {settled && (
+          <>
+            <div className="nb-section__label">分轮总伤</div>
+            <div className="nb-substats">
+              {settled.damageByCycle.map((d, i) => (
+                <div key={i}>
+                  <span>{i === 0 ? '0T' : `${i}T`}</span>
+                  <strong>{formatInt(d)}</strong>
+                </div>
+              ))}
+              <div>
+                <span>合计</span>
+                <strong>{formatInt(settled.totalDamage)}</strong>
+              </div>
+            </div>
+            {(settled.skillsDowngraded > 0 ||
+              settled.ultCasts > 0 ||
+              settled.spOverflowTotal > 0) && (
+              <p className="nb-template-note">
+                战技降级 {settled.skillsDowngraded} · 自动终结技{' '}
+                {settled.ultCasts} · SP 溢出 {settled.spOverflowTotal}
+                {settled.endedBroken ? ' · 已破韧' : ''}
+              </p>
+            )}
+            {speedExplain && (
+              <p className={`nb-order ${speedExplain.deltaRatio >= 0 ? 'is-ok' : 'is-bad'}`}>
+                速度 {speedExplain.lo}→{speedExplain.hi}：总伤{' '}
+                {formatInt(speedExplain.a.totalDamage)} →{' '}
+                {formatInt(speedExplain.b.totalDamage)}（
+                {speedExplain.deltaRatio >= 0 ? '+' : ''}
+                {(speedExplain.deltaRatio * 100).toFixed(1)}%
+                ）· 行动 {speedExplain.a.hits.length}→{speedExplain.b.hits.length}
+                {speedExplain.b.skillsDowngraded > speedExplain.a.skillsDowngraded
+                  ? ` · 多动带来更多缺 SP 降级`
+                  : ''}
+              </p>
+            )}
+            <div className="nb-section__label">结算命中</div>
+            <div className="nb-table-wrap">
+              <table className="nb-table">
+                <thead>
+                  <tr>
+                    <th>AV</th>
+                    <th>行动</th>
+                    <th>伤害</th>
+                    <th>SP</th>
+                    <th>能量</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {settled.hits.map((h, i) => (
+                    <tr key={`${h.time}-${h.label}-${i}`}>
+                      <td>{formatAv(h.time)}</td>
+                      <td>
+                        <strong>{h.label}</strong>
+                        {h.covered ? (
+                          <span className="nb-av-tag is-cover"> 盖</span>
+                        ) : buffRules.some((b) => b.coversCarry) ? (
+                          <span className="nb-av-tag is-miss"> 漏</span>
+                        ) : null}
+                        {h.note ? (
+                          <div className="nb-table__sub">{h.note}</div>
+                        ) : null}
+                      </td>
+                      <td>{formatInt(h.damage)}</td>
+                      <td>
+                        {h.spBefore}→{h.spAfter}
+                      </td>
+                      <td>
+                        {Math.round(h.energyBefore)}→{Math.round(h.energyAfter)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {(settled?.diagnostics.length || combat.diagnostics.length) > 0 && (
           <>
             <div className="nb-section__label">诊断</div>
             <ul className="nb-diag-list">
-              {combat.diagnostics.map((d, i) => (
+              {(settled?.diagnostics ?? combat.diagnostics).map((d, i) => (
                 <li key={`${i}-${d}`} className="nb-diag-list__item is-warn">
                   {d}
                 </li>

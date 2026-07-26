@@ -26,7 +26,7 @@ npm run build
 
 - `#/` — damage calculator
 - `#/team` — team workshop (buff aggregate, coverage, swap, combo search, compare)
-- `#/timeline` — AV event timeline / speed tuning + buff coverage (P4.2)
+- `#/timeline` — AV event timeline / speed tuning + buff coverage + timeline×rotation damage (P4.3)
 - `#/rotation` — skill rotation (direct / DOT / break rails + toughness)
 - `#/build` — substat advice + Fribbels / relic JSON import
 - `#/formula` — formula explain page
