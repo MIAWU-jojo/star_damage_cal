@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export type AppRoute = 'calc' | 'formula' | 'team' | 'rotation' | 'build'
+export type AppRoute = 'calc' | 'formula' | 'team' | 'rotation' | 'build' | 'timeline'
 
 function parseHash(hash: string): AppRoute {
   const raw = hash.replace(/^#\/?/, '').split('?')[0]
@@ -8,6 +8,7 @@ function parseHash(hash: string): AppRoute {
   if (raw === 'team') return 'team'
   if (raw === 'rotation') return 'rotation'
   if (raw === 'build') return 'build'
+  if (raw === 'timeline') return 'timeline'
   return 'calc'
 }
 

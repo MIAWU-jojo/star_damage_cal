@@ -3,11 +3,13 @@ import { Calculator } from './components/Calculator'
 import { FormulaPage } from './components/FormulaPage'
 import { RotationPage } from './components/RotationPage'
 import { TeamWorkshop } from './components/TeamWorkshop'
+import { TimelinePage } from './components/TimelinePage'
 import { useHashRoute, type AppRoute } from './hooks/useHashRoute'
 
 const NAV: Array<{ id: AppRoute; label: string }> = [
   { id: 'calc', label: '伤害计算' },
   { id: 'team', label: '配队工坊' },
+  { id: 'timeline', label: '行动条' },
   { id: 'rotation', label: '技能轮次' },
   { id: 'build', label: '构筑建议' },
   { id: 'formula', label: '公式说明' },
@@ -46,14 +48,15 @@ export default function App() {
           Star <span>Damage</span>
         </h1>
         <p className="nb-lead">
-          崩坏·星穹铁道直伤 / DOT / 击破演算与配队乘区对照。按灰机 Wiki
-          <strong>硬拆伤害</strong>，看清该补增伤、减防还是降抗。
+          崩坏·星穹铁道直伤 / DOT / 击破演算、配队乘区与<strong>行动条配速</strong>。按灰机 Wiki
+          硬拆伤害，看清该补增伤、减防还是降抗。
         </p>
       </header>
 
       <main>
         {route === 'calc' && <Calculator />}
         {route === 'team' && <TeamWorkshop />}
+        {route === 'timeline' && <TimelinePage />}
         {route === 'rotation' && <RotationPage />}
         {route === 'build' && <BuildPage />}
         {route === 'formula' && <FormulaPage />}
