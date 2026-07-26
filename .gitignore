@@ -18,6 +18,9 @@ dist-ssr
 !.env.example
 *.pem
 *.key
+id_rsa
+id_ed25519
+id_ecdsa
 credentials*.json
 *secret*
 !*secret*.md
