@@ -158,8 +158,10 @@ function resetDistance(actor: AvActor): number {
 }
 
 function cycleIndexAtTime(time: number, cycleEnds: number[]): number {
+  // Inclusive upper bound: an action at exactly cycleEnds[i] still belongs
+  // to cycle i (e.g. 133.333… SPD second act at AV 150 → 首轮 2 动).
   for (let i = 0; i < cycleEnds.length; i++) {
-    if (time < cycleEnds[i] - 1e-9) return i
+    if (time <= cycleEnds[i] + 1e-9) return i
   }
   return Math.max(0, cycleEnds.length - 1)
 }

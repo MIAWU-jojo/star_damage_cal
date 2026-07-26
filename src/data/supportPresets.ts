@@ -3,33 +3,15 @@
  * Values are simplified combat approximations for P1 team workshop — not full kit parsers.
  */
 
+import type { SupportBuffs, SupportEffect, SupportZoneId } from '../engine/domain'
+
+export type { SupportBuffs, SupportZoneId }
 export type SupportRole = 'harmony' | 'nihility' | 'abundance' | 'preservation' | 'other'
 
-export interface SupportBuffs {
-  /** Additive DMG% to the carry. */
-  damageBonus: number
-  vulnerability: number
-  defReduction: number
-  resReduction: number
-  /** Extra ATK% roughly folded into attribute bump for workshop (optional). */
-  atkPercent: number
-  critRate: number
-  critDamage: number
-}
-
-export interface SupportPreset {
-  id: string
-  name: string
+export interface SupportPreset extends SupportEffect {
   role: SupportRole
   element: string
-  /** Survival-slot warning only — does not score damage. */
-  isSurvival: boolean
-  /** Can implant / force a weakness (e.g. Silver Wolf) — used by weakness filters. */
-  implantsWeakness?: boolean
   note: string
-  buffs: SupportBuffs
-  /** Which zones this support primarily fills (for coverage UI). */
-  zones: Array<'bonus' | 'vuln' | 'def' | 'res' | 'crit' | 'atk'>
 }
 
 export const SUPPORT_PRESETS: SupportPreset[] = [

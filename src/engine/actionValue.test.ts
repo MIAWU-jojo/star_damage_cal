@@ -69,6 +69,21 @@ describe('simulateTimeline', () => {
     expect(noPull.events[0].time).toBeCloseTo(100, 4)
   })
 
+  it('assigns action exactly at cycle budget to that cycle (133.333… → 首轮 2 动)', () => {
+    const spd = minSpeedForActions(1, 2)
+    expect(spd).toBeCloseTo(133.3333, 3)
+    const tl = simulateTimeline({
+      cycles: 2,
+      actors: [{ id: 'c', name: '主', speed: spd }],
+    })
+    const st = tl.stats.find((s) => s.actorId === 'c')!
+    expect(st.actionsPerCycle[0]).toBe(2)
+    expect(st.actionsPerCycle[1]).toBeGreaterThanOrEqual(1)
+    const second = tl.events[1]
+    expect(second.time).toBeCloseTo(150, 4)
+    expect(second.cycle).toBe(1)
+  })
+
   it('checks first-action order', () => {
     const tl = simulateTimeline({
       cycles: 1,

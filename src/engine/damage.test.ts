@@ -69,4 +69,30 @@ describe('calculateDamage', () => {
     expect(result.zones).toHaveLength(7)
     expect(result.marginals[0].gainRatio).toBeGreaterThan(0)
   })
+
+  it('returns 0% marginal gains when baseline damage is zero', () => {
+    const result = calculateDamage({
+      critMode: 'expected',
+      attacker: {
+        level: 80,
+        attributeValue: 0,
+        baseMultiplier: 2,
+        multiplierBonus: 0,
+        critRate: 0.5,
+        critDamage: 1,
+        damageBonus: 0.5,
+        resPen: 0,
+        defIgnore: 0,
+      },
+      defender: { level: 80, resistance: 0, hasToughness: false },
+      buffs: {
+        vulnerability: 0,
+        defReduction: 0,
+        resReduction: 0,
+        damageTakenReductions: [],
+      },
+    })
+    expect(result.finalDamage).toBe(0)
+    expect(result.marginals.every((m) => m.gainRatio === 0)).toBe(true)
+  })
 })

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { CHARACTER_PRESETS } from '../data/characterPresets'
 import {
   COMMON_BREAKPOINTS,
   checkFirstActionOrder,
@@ -6,6 +7,7 @@ import {
   simulateTimeline,
   type AvActor,
 } from '../engine/actionValue'
+import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatAv(n: number): string {
   return n.toFixed(2)
@@ -60,12 +62,34 @@ const DEFAULT_SLOTS: Slot[] = [
 ]
 
 export function TimelinePage() {
-  const [slots, setSlots] = useState<Slot[]>(DEFAULT_SLOTS)
+  const { carryPresetId, carrySpeed, setCarrySpeed, enemyTemplateId } = useWorkspace()
+  const carryPreset =
+    CHARACTER_PRESETS.find((c) => c.id === carryPresetId) ?? CHARACTER_PRESETS[0]
+  const [slots, setSlots] = useState<Slot[]>(() =>
+    DEFAULT_SLOTS.map((s) =>
+      s.role === 'carry'
+        ? { ...s, name: carryPreset.name, speed: carrySpeed }
+        : s,
+    ),
+  )
   const [enemyOn, setEnemyOn] = useState(false)
   const [enemySpeed, setEnemySpeed] = useState(144)
   const [cycles, setCycles] = useState(2)
   const [orderBefore, setOrderBefore] = useState('s1')
   const [orderAfter, setOrderAfter] = useState('c1')
+
+  useEffect(() => {
+    setSlots((prev) =>
+      prev.map((s) =>
+        s.role === 'carry'
+          ? { ...s, name: carryPreset.name, speed: carrySpeed }
+          : s,
+      ),
+    )
+  }, [carryPreset.name, carrySpeed])
+
+  // keep enemyTemplateId referenced for future P4.3 linkage
+  void enemyTemplateId
 
   const actors: AvActor[] = useMemo(() => {
     const list: AvActor[] = slots
@@ -169,9 +193,11 @@ export function TimelinePage() {
                     min={1}
                     step={0.1}
                     value={s.speed}
-                    onChange={(e) =>
-                      updateSlot(s.id, { speed: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const speed = Number(e.target.value)
+                      updateSlot(s.id, { speed })
+                      if (s.role === 'carry') setCarrySpeed(speed)
+                    }}
                   />
                 </div>
                 <div className="nb-field">

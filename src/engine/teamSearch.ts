@@ -2,7 +2,7 @@
  * Multi-support combo search (limited enumerate / greedy) + team compare.
  */
 
-import type { SupportPreset } from '../data/supportPresets'
+import type { SupportEffect } from './domain'
 import {
   aggregateSupports,
   buildCoverage,
@@ -51,7 +51,7 @@ function combinations<T>(arr: T[], k: number): T[][] {
 function scoreCombo(args: {
   attacker: AttackerInput
   defender: DefenderInput
-  supports: SupportPreset[]
+  supports: SupportEffect[]
   critMode: CritMode
 }): TeamComboResult {
   const damage = teamDamage({
@@ -77,7 +77,7 @@ function scoreCombo(args: {
 export function searchSupportCombos(args: {
   attacker: AttackerInput
   defender: DefenderInput
-  pool: SupportPreset[]
+  pool: SupportEffect[]
   teamSize?: number
   topN?: number
   critMode?: CritMode
@@ -120,12 +120,12 @@ export function searchSupportCombos(args: {
       .sort((a, b) => b.damage - a.damage)
       .slice(0, 6)
 
-    let beam: SupportPreset[][] = singles.map((s) =>
+    let beam: SupportEffect[][] = singles.map((s) =>
       s.supportIds.map((id) => pool.find((p) => p.id === id)!),
     )
 
     while (beam[0] && beam[0].length < teamSize) {
-      const next: SupportPreset[][] = []
+      const next: SupportEffect[][] = []
       for (const team of beam) {
         const on = new Set(team.map((t) => t.id))
         for (const cand of pool) {
@@ -189,7 +189,7 @@ function coverageCompact(coverage: ZoneCoverage[]): string {
 export function compareTeams(args: {
   attacker: AttackerInput
   defender: DefenderInput
-  teams: Array<{ label: string; supports: SupportPreset[] }>
+  teams: Array<{ label: string; supports: SupportEffect[] }>
   critMode?: CritMode
 }): TeamCompareRow[] {
   const critMode = args.critMode ?? 'expected'

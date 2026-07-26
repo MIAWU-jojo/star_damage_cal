@@ -159,7 +159,7 @@ export function calculateDamage(input: DamageInput): DamageResult {
     { id: 'redu', label: '减伤修正', value: core.reductionZone, share: shares[6] },
   ]
 
-  const baseFinal = Math.max(core.finalDamage, 1e-9)
+  const baseFinal = core.finalDamage
   const trials: Array<{ id: string; label: string; next: DamageInput }> = [
     {
       id: 'bonus',
@@ -198,10 +198,12 @@ export function calculateDamage(input: DamageInput): DamageResult {
 
   const marginals: MarginalGain[] = trials.map((t) => {
     const nextDmg = computeCore(t.next).finalDamage
+    // No meaningful relative gain when baseline damage is zero.
+    const gainRatio = baseFinal > 0 ? nextDmg / baseFinal - 1 : 0
     return {
       id: t.id,
       label: t.label,
-      gainRatio: nextDmg / baseFinal - 1,
+      gainRatio,
     }
   }).sort((a, b) => b.gainRatio - a.gainRatio)
 

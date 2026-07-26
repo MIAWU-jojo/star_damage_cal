@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
 import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
 import { adviseSubstats } from '../engine/substats'
 import { parseFribbelsCharacter, parseRelicScanBonuses } from '../engine/fribbels'
 import type { AttackerInput } from '../engine/types'
+import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatGain(ratio: number): string {
   const pct = ratio * 100
@@ -24,16 +25,25 @@ function attackerToForm(a: AttackerInput) {
 }
 
 export function BuildPage() {
-  const [carryId, setCarryId] = useState(CHARACTER_PRESETS[0].id)
+  const {
+    carryPresetId: carryId,
+    setCarryPresetId,
+    enemyTemplateId: enemyId,
+    setEnemyTemplateId: setEnemyId,
+    carrySpeed: speed,
+    setCarrySpeed: setSpeed,
+  } = useWorkspace()
   const preset = CHARACTER_PRESETS.find((c) => c.id === carryId) ?? CHARACTER_PRESETS[0]
   const [form, setForm] = useState(() => attackerToForm(preset.attacker))
-  const [speed, setSpeed] = useState(134)
   const [speedFloor, setSpeedFloor] = useState(134)
-  const [enemyId, setEnemyId] = useState(ENEMY_TEMPLATES[0].id)
   const [importText, setImportText] = useState('')
   const [importMsg, setImportMsg] = useState('')
   const [relicText, setRelicText] = useState('')
   const [relicMsg, setRelicMsg] = useState('')
+
+  useEffect(() => {
+    setForm(attackerToForm(preset.attacker))
+  }, [preset])
 
   const enemy = ENEMY_TEMPLATES.find((e) => e.id === enemyId) ?? ENEMY_TEMPLATES[0]
 
@@ -76,9 +86,7 @@ export function BuildPage() {
   )
 
   const loadPreset = (id: string) => {
-    setCarryId(id)
-    const p = CHARACTER_PRESETS.find((c) => c.id === id)
-    if (p) setForm(attackerToForm(p.attacker))
+    setCarryPresetId(id)
   }
 
   const applyFribbels = () => {
@@ -115,7 +123,7 @@ export function BuildPage() {
         critDamagePct: prev.critDamagePct + bonuses.critDamage * 100,
         damageBonusPct: prev.damageBonusPct + bonuses.damageBonus * 100,
       }))
-      if (bonuses.speed) setSpeed((s) => s + bonuses.speed)
+      if (bonuses.speed) setSpeed(speed + bonuses.speed)
       setRelicMsg(
         `已叠加：攻%${(bonuses.atkPercent * 100).toFixed(1)} / 暴击${(bonuses.critRate * 100).toFixed(1)} / 暴伤${(bonuses.critDamage * 100).toFixed(1)}` +
           (bonuses.warnings.length ? `（${bonuses.warnings.join('；')}）` : ''),

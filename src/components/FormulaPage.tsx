@@ -45,7 +45,7 @@ export function FormulaPage() {
       <section className="nb-panel">
         <h2 className="nb-panel__title">伤害公式</h2>
         <p className="nb-panel__hint">
-          主干对齐灰机 Wiki。P0 只覆盖<strong>常规直伤</strong>。
+          主干对齐灰机 Wiki。覆盖<strong>常规直伤</strong>，并在「技能轮次」支持 DOT / 击破 / 附加伤害轨；「行动条」页处理速度与轮次。
         </p>
 
         <div className="nb-formula__hero">

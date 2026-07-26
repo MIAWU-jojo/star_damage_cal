@@ -2,9 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/global.css'
 import App from './App.tsx'
+import { WorkspaceProvider } from './state/WorkspaceContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <WorkspaceProvider>
+      <App />
+    </WorkspaceProvider>
   </StrictMode>,
 )

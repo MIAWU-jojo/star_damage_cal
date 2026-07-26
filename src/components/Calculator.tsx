@@ -15,6 +15,7 @@ import {
   planarRelics,
   relicToLayer,
 } from '../data/relicPresets'
+import { useWorkspace } from '../state/WorkspaceContext'
 
 function pctToRate(pct: number): number {
   return pct / 100
@@ -29,7 +30,8 @@ function formatZone(n: number): string {
   return `${(n * 100).toFixed(1)}%`
 }
 
-function formatGain(ratio: number): string {
+function formatGain(ratio: number, hasBase: boolean): string {
+  if (!hasBase) return '—'
   const pct = ratio * 100
   const sign = pct >= 0 ? '+' : ''
   return `${sign}${pct.toFixed(1)}%`
@@ -89,16 +91,67 @@ function encodeShare(state: ShareState): string {
 
 export function Calculator() {
   const formId = useId()
+  const {
+    carryPresetId,
+    setCarryPresetId,
+    enemyTemplateId,
+    setEnemyTemplateId,
+  } = useWorkspace()
   const draft = typeof window !== 'undefined' ? loadDraft() : null
+  const fromShare =
+    typeof window !== 'undefined' &&
+    Boolean(new URLSearchParams(window.location.search).get('c'))
+
+  const initialAttacker = (() => {
+    if (fromShare && draft?.attacker) return draft.attacker
+    const preset = CHARACTER_PRESETS.find((p) => p.id === carryPresetId)
+    if (preset) {
+      const a = preset.attacker
+      return {
+        level: a.level,
+        attributeValue: a.attributeValue,
+        baseMultiplierPct: a.baseMultiplier * 100,
+        multiplierBonusPct: a.multiplierBonus * 100,
+        critRatePct: a.critRate * 100,
+        critDamagePct: a.critDamage * 100,
+        damageBonusPct: a.damageBonus * 100,
+        resPenPct: a.resPen * 100,
+        defIgnorePct: a.defIgnore * 100,
+      }
+    }
+    return draft?.attacker ?? DEFAULT_ATTACKER
+  })()
+
+  const initialEnemy = (() => {
+    const id = fromShare ? (draft?.templateId ?? enemyTemplateId) : enemyTemplateId
+    const tpl = ENEMY_TEMPLATES.find((t) => t.id === id) ?? ENEMY_TEMPLATES[0]
+    if (fromShare && draft) {
+      return {
+        templateId: draft.templateId ?? tpl.id,
+        enemyLevel: draft.enemyLevel ?? tpl.level,
+        enemyDef: (draft.enemyDef ?? tpl.defense ?? '') as number | '',
+        enemyResPct: draft.enemyResPct ?? tpl.resistance * 100,
+        hasToughness: draft.hasToughness ?? tpl.hasToughness,
+      }
+    }
+    return {
+      templateId: tpl.id,
+      enemyLevel: tpl.level,
+      enemyDef: (tpl.defense ?? '') as number | '',
+      enemyResPct: tpl.resistance * 100,
+      hasToughness: tpl.hasToughness,
+    }
+  })()
+
   const [critMode, setCritMode] = useState<CritMode>(draft?.critMode ?? 'expected')
-  const [templateId, setTemplateId] = useState(draft?.templateId ?? ENEMY_TEMPLATES[0].id)
-  const [attacker, setAttacker] = useState(draft?.attacker ?? DEFAULT_ATTACKER)
-  const [enemyLevel, setEnemyLevel] = useState(draft?.enemyLevel ?? 80)
-  const [enemyDef, setEnemyDef] = useState<number | ''>(draft?.enemyDef ?? '')
-  const [enemyResPct, setEnemyResPct] = useState(draft?.enemyResPct ?? 0)
-  const [hasToughness, setHasToughness] = useState(draft?.hasToughness ?? true)
+  const [templateId, setTemplateId] = useState(initialEnemy.templateId)
+  const [attacker, setAttacker] = useState(initialAttacker)
+  const [enemyLevel, setEnemyLevel] = useState(initialEnemy.enemyLevel)
+  const [enemyDef, setEnemyDef] = useState<number | ''>(initialEnemy.enemyDef)
+  const [enemyResPct, setEnemyResPct] = useState(initialEnemy.enemyResPct)
+  const [hasToughness, setHasToughness] = useState(initialEnemy.hasToughness)
   const [buffs, setBuffs] = useState(draft?.buffs ?? DEFAULT_BUFFS)
-  const [presetId, setPresetId] = useState('')
+  const [presetId, setPresetId] = useState(carryPresetId || '')
   const [lightConeId, setLightConeId] = useState(draft?.lightConeId ?? 'none')
   const [cavernId, setCavernId] = useState(draft?.cavernId ?? 'none-cavern')
   const [planarId, setPlanarId] = useState(draft?.planarId ?? 'none-planar')
@@ -145,6 +198,7 @@ export function Calculator() {
 
   const onTemplateChange = (id: string) => {
     setTemplateId(id)
+    setEnemyTemplateId(id)
     const next = ENEMY_TEMPLATES.find((t) => t.id === id)
     if (!next) return
     setEnemyLevel(next.level)
@@ -155,6 +209,7 @@ export function Calculator() {
 
   const applyPreset = (id: string) => {
     setPresetId(id)
+    if (id) setCarryPresetId(id)
     const preset = CHARACTER_PRESETS.find((p) => p.id === id)
     if (!preset) return
     const a = preset.attacker
@@ -263,6 +318,12 @@ export function Calculator() {
 
   return (
     <div className="nb-layout">
+      <div className="nb-mobile-summary" aria-live="polite">
+        <span className="nb-mobile-summary__label">最终伤害</span>
+        <strong className="nb-mobile-summary__value">
+          {formatInt(result.finalDamage)}
+        </strong>
+      </div>
       <section className="nb-panel" aria-labelledby={`${formId}-hunt`}>
         <h2 id={`${formId}-hunt`} className="nb-panel__title">
           输入面板
@@ -654,7 +715,7 @@ export function Calculator() {
           {result.marginals.map((m) => (
             <li key={m.id}>
               <span>{m.label}</span>
-              <strong>{formatGain(m.gainRatio)}</strong>
+              <strong>{formatGain(m.gainRatio, result.finalDamage > 0)}</strong>
             </li>
           ))}
         </ul>

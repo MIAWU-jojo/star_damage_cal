@@ -20,6 +20,7 @@ import {
   type CoverageLevel,
 } from '../engine/team'
 import { compareTeams, searchSupportCombos } from '../engine/teamSearch'
+import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatInt(n: number): string {
   return Math.round(n).toLocaleString('zh-CN')
@@ -44,9 +45,14 @@ const LEVEL_CLASS: Record<CoverageLevel, string> = {
 const DEFAULT_TEAM_IDS = ['tingyun', 'pela', 'huohuo']
 
 export function TeamWorkshop() {
-  const [carryId, setCarryId] = useState(CHARACTER_PRESETS[0].id)
-  const [enemyId, setEnemyId] = useState(ENEMY_TEMPLATES[0].id)
-  const [slotIds, setSlotIds] = useState<string[]>(DEFAULT_TEAM_IDS)
+  const {
+    carryPresetId: carryId,
+    setCarryPresetId: setCarryId,
+    enemyTemplateId: enemyId,
+    setEnemyTemplateId: setEnemyId,
+    teamSlotIds: slotIds,
+    setTeamSlotIds: setSlotIds,
+  } = useWorkspace()
   const [poolIds, setPoolIds] = useState<string[]>(() =>
     SUPPORT_PRESETS.filter((s) => !DEFAULT_TEAM_IDS.includes(s.id)).map((s) => s.id),
   )
@@ -55,6 +61,20 @@ export function TeamWorkshop() {
   )
   const [filterByWeakness, setFilterByWeakness] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
+
+  useEffect(() => {
+    setPoolIds((prev) => {
+      const kept = prev.filter((id) => !slotIds.includes(id))
+      const extras = SUPPORT_PRESETS.map((s) => s.id).filter(
+        (id) => !slotIds.includes(id) && !kept.includes(id),
+      )
+      // Keep previous selection for still-valid ids; add missing off-team supports unchecked? 
+      // Prefer: pool = all not on team that were previously on, plus default off-team.
+      return [...new Set([...kept, ...extras.filter((id) => prev.includes(id) || !slotIds.includes(id))])].filter(
+        (id) => !slotIds.includes(id),
+      )
+    })
+  }, [slotIds])
 
   const carry = CHARACTER_PRESETS.find((c) => c.id === carryId) ?? CHARACTER_PRESETS[0]
   const enemy = ENEMY_TEMPLATES.find((e) => e.id === enemyId) ?? ENEMY_TEMPLATES[0]

@@ -1,6 +1,10 @@
 import { calculateDamage } from './damage'
+import type {
+  SupportBuffs,
+  SupportEffect,
+  SupportZoneId,
+} from './domain'
 import type { AttackerInput, BuffInput, CritMode, DamageInput, DefenderInput } from './types'
-import type { SupportBuffs, SupportPreset } from '../data/supportPresets'
 
 export interface AggregatedTeamBuffs {
   damageBonus: number
@@ -10,13 +14,13 @@ export interface AggregatedTeamBuffs {
   atkPercent: number
   critRate: number
   critDamage: number
-  sources: Array<{ id: string; name: string; zones: SupportPreset['zones'] }>
+  sources: Array<{ id: string; name: string; zones: SupportZoneId[] }>
 }
 
 export type CoverageLevel = 'none' | 'low' | 'ok' | 'high'
 
 export interface ZoneCoverage {
-  id: 'bonus' | 'vuln' | 'def' | 'res' | 'crit' | 'atk'
+  id: SupportZoneId
   label: string
   value: number
   level: CoverageLevel
@@ -35,10 +39,10 @@ export interface SwapCandidateResult {
   incomingName: string
   damage: number
   gainRatio: number
-  addedZones: SupportPreset['zones']
+  addedZones: SupportZoneId[]
 }
 
-function sumBuffs(supports: SupportPreset[]): AggregatedTeamBuffs {
+function sumBuffs(supports: SupportEffect[]): AggregatedTeamBuffs {
   const acc: AggregatedTeamBuffs = {
     damageBonus: 0,
     vulnerability: 0,
@@ -62,12 +66,10 @@ function sumBuffs(supports: SupportPreset[]): AggregatedTeamBuffs {
     acc.sources.push({ id: s.id, name: s.name, zones: s.zones })
   }
 
-  // DEF shred / ignore style effects are capped at 100% in the damage engine,
-  // but we keep raw sum here for coverage display and clamp when building input.
   return acc
 }
 
-export function aggregateSupports(supports: SupportPreset[]): AggregatedTeamBuffs {
+export function aggregateSupports(supports: SupportEffect[]): AggregatedTeamBuffs {
   return sumBuffs(supports)
 }
 
@@ -124,7 +126,6 @@ export function buildCoverage(agg: AggregatedTeamBuffs): ZoneCoverage[] {
 const ZONE_PRIORITY: ZoneCoverage['id'][] = ['def', 'vuln', 'res', 'bonus', 'crit', 'atk']
 
 export function diagnoseGaps(coverage: ZoneCoverage[]): GapDiagnosis {
-  // Prefer diagnosing empty offensive shred zones first.
   const ranked = [...coverage].sort((a, b) => {
     const score = (z: ZoneCoverage) => {
       const emptyBoost = z.level === 'none' ? 0 : z.level === 'low' ? 1 : 2
@@ -195,7 +196,7 @@ export function applyTeamToBuffs(agg: AggregatedTeamBuffs): BuffInput {
 export function teamDamage(args: {
   attacker: AttackerInput
   defender: DefenderInput
-  supports: SupportPreset[]
+  supports: SupportEffect[]
   critMode?: CritMode
 }): number {
   const agg = aggregateSupports(args.supports)
@@ -208,15 +209,11 @@ export function teamDamage(args: {
   return calculateDamage(input).finalDamage
 }
 
-/**
- * Try replacing each filled support slot with each candidate not already on the team.
- * Rank by expected damage gain vs current team.
- */
 export function optimizeSingleSwap(args: {
   attacker: AttackerInput
   defender: DefenderInput
-  team: SupportPreset[]
-  candidates: SupportPreset[]
+  team: SupportEffect[]
+  candidates: SupportEffect[]
   critMode?: CritMode
   topN?: number
 }): SwapCandidateResult[] {

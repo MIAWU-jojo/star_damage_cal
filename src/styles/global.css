@@ -511,7 +511,9 @@ select {
   color: var(--nb-ink);
   background: transparent;
   border: 2px solid transparent;
-  padding: 0.15rem 0.45rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.45rem 0.65rem;
 }
 
 .nb-nav__btn[aria-current="page"] {
@@ -522,8 +524,8 @@ select {
 .nb-btn {
   appearance: none;
   cursor: pointer;
-  min-height: 40px;
-  padding: 0.4rem 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 0.85rem;
   border: var(--border-strong);
   box-shadow: var(--shadow-press);
   background: var(--nb-cream);
@@ -565,7 +567,8 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.55rem;
+  min-height: 44px;
+  padding: 0.45rem 0.65rem;
   border: 2px solid var(--nb-black);
   background: #fff;
   font-weight: 600;
@@ -946,6 +949,43 @@ select {
   color: #8a1020;
   font-weight: 700;
 }
+
+.nb-mobile-summary {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .nb-mobile-summary {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-3);
+    padding: 0.75rem 0.85rem;
+    background: var(--nb-coral);
+    border: var(--border-strong);
+    box-shadow: var(--shadow-hard);
+  }
+
+  .nb-mobile-summary__label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .nb-mobile-summary__value {
+    font-family: var(--font-mono);
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+}
+
 
 
 

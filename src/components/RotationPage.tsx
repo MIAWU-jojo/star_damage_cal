@@ -7,6 +7,7 @@ import {
   type RotationAction,
   type RotationActionKind,
 } from '../engine/rotation'
+import { useWorkspace } from '../state/WorkspaceContext'
 
 function formatInt(n: number): string {
   return Math.round(n).toLocaleString('zh-CN')
@@ -26,8 +27,12 @@ const KIND_OPTIONS: Array<{ id: RotationActionKind; label: string }> = [
 let actionSeq = 0
 
 export function RotationPage() {
-  const [carryId, setCarryId] = useState(CHARACTER_PRESETS[0].id)
-  const [enemyId, setEnemyId] = useState(ENEMY_TEMPLATES[0].id)
+  const {
+    carryPresetId: carryId,
+    setCarryPresetId: setCarryId,
+    enemyTemplateId: enemyId,
+    setEnemyTemplateId: setEnemyId,
+  } = useWorkspace()
   const [maxToughness, setMaxToughness] = useState(100)
   const [trackToughness, setTrackToughness] = useState(true)
   const [startBroken, setStartBroken] = useState(false)
@@ -238,8 +243,9 @@ export function RotationPage() {
                     a.kind === 'followup') && (
                     <>
                       <div className="nb-field">
-                        <label>倍率</label>
+                        <label htmlFor={`${a.id}-mult`}>倍率</label>
                         <input
+                          id={`${a.id}-mult`}
                           type="number"
                           step={0.1}
                           value={a.multiplier ?? 1}
@@ -249,8 +255,9 @@ export function RotationPage() {
                         />
                       </div>
                       <div className="nb-field">
-                        <label>段数</label>
+                        <label htmlFor={`${a.id}-hits`}>段数</label>
                         <input
+                          id={`${a.id}-hits`}
                           type="number"
                           min={1}
                           value={a.hits ?? 1}
@@ -260,8 +267,9 @@ export function RotationPage() {
                         />
                       </div>
                       <div className="nb-field">
-                        <label>削韧</label>
+                        <label htmlFor={`${a.id}-tough`}>削韧</label>
                         <input
+                          id={`${a.id}-tough`}
                           type="number"
                           min={0}
                           value={a.toughnessDamage ?? 0}
@@ -277,8 +285,9 @@ export function RotationPage() {
                   {a.kind === 'dot' && (
                     <>
                       <div className="nb-field">
-                        <label>DOT 倍率</label>
+                        <label htmlFor={`${a.id}-dotm`}>DOT 倍率</label>
                         <input
+                          id={`${a.id}-dotm`}
                           type="number"
                           step={0.05}
                           value={a.dotMultiplier ?? 0.5}
@@ -290,8 +299,9 @@ export function RotationPage() {
                         />
                       </div>
                       <div className="nb-field">
-                        <label>层数</label>
+                        <label htmlFor={`${a.id}-stacks`}>层数</label>
                         <input
+                          id={`${a.id}-stacks`}
                           type="number"
                           min={1}
                           value={a.dotStacks ?? 1}
@@ -305,8 +315,9 @@ export function RotationPage() {
                   {(a.kind === 'break' || a.kind === 'superbreak') && (
                     <>
                       <div className="nb-field">
-                        <label>削韧</label>
+                        <label htmlFor={`${a.id}-tough`}>削韧</label>
                         <input
+                          id={`${a.id}-tough`}
                           type="number"
                           min={0}
                           value={a.toughnessDamage ?? 20}
@@ -318,8 +329,9 @@ export function RotationPage() {
                         />
                       </div>
                       <div className="nb-field">
-                        <label>属性击破倍率</label>
+                        <label htmlFor={`${a.id}-elem`}>属性击破倍率</label>
                         <input
+                          id={`${a.id}-elem`}
                           type="number"
                           step={0.1}
                           value={a.elementalBreakMult ?? 1}
@@ -332,8 +344,9 @@ export function RotationPage() {
                       </div>
                       {a.kind === 'superbreak' && (
                         <div className="nb-field">
-                          <label>超击破倍率</label>
-                          <input
+                        <label htmlFor={`${a.id}-sb`}>超击破倍率</label>
+                        <input
+                          id={`${a.id}-sb`}
                             type="number"
                             step={0.1}
                             value={a.superBreakMultiplier ?? 1.2}
@@ -349,8 +362,9 @@ export function RotationPage() {
                   )}
                   {a.kind === 'additional' && (
                     <div className="nb-field">
-                      <label>附加倍率</label>
-                      <input
+                        <label htmlFor={`${a.id}-add`}>附加倍率</label>
+                        <input
+                          id={`${a.id}-add`}
                         type="number"
                         step={0.05}
                         value={a.additionalMultiplier ?? 0.6}
