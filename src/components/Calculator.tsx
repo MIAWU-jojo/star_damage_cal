@@ -1,6 +1,7 @@
-import { useId, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type ChangeEvent } from 'react'
 import { calculateDamage } from '../engine/damage'
 import type { CritMode, DamageInput } from '../engine/types'
+import { CHARACTER_PRESETS } from '../data/characterPresets'
 import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
 
 function pctToRate(pct: number): number {
@@ -41,18 +42,73 @@ const DEFAULT_BUFFS = {
   weakenPct: 0,
 }
 
+type ShareState = {
+  critMode: CritMode
+  templateId: string
+  attacker: typeof DEFAULT_ATTACKER
+  enemyLevel: number
+  enemyDef: number | ''
+  enemyResPct: number
+  hasToughness: boolean
+  buffs: typeof DEFAULT_BUFFS
+}
+
+const STORAGE_KEY = 'star-damage-cal:draft-v1'
+
+function loadDraft(): Partial<ShareState> | null {
+  try {
+    const q = new URLSearchParams(window.location.search).get('c')
+    if (q) {
+      return JSON.parse(decodeURIComponent(atob(q))) as ShareState
+    }
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as ShareState) : null
+  } catch {
+    return null
+  }
+}
+
+function encodeShare(state: ShareState): string {
+  return btoa(encodeURIComponent(JSON.stringify(state)))
+}
+
 export function Calculator() {
   const formId = useId()
-  const [critMode, setCritMode] = useState<CritMode>('expected')
-  const [templateId, setTemplateId] = useState(ENEMY_TEMPLATES[0].id)
-  const [attacker, setAttacker] = useState(DEFAULT_ATTACKER)
-  const [enemyLevel, setEnemyLevel] = useState(80)
-  const [enemyDef, setEnemyDef] = useState<number | ''>('')
-  const [enemyResPct, setEnemyResPct] = useState(0)
-  const [hasToughness, setHasToughness] = useState(true)
-  const [buffs, setBuffs] = useState(DEFAULT_BUFFS)
+  const draft = typeof window !== 'undefined' ? loadDraft() : null
+  const [critMode, setCritMode] = useState<CritMode>(draft?.critMode ?? 'expected')
+  const [templateId, setTemplateId] = useState(draft?.templateId ?? ENEMY_TEMPLATES[0].id)
+  const [attacker, setAttacker] = useState(draft?.attacker ?? DEFAULT_ATTACKER)
+  const [enemyLevel, setEnemyLevel] = useState(draft?.enemyLevel ?? 80)
+  const [enemyDef, setEnemyDef] = useState<number | ''>(draft?.enemyDef ?? '')
+  const [enemyResPct, setEnemyResPct] = useState(draft?.enemyResPct ?? 0)
+  const [hasToughness, setHasToughness] = useState(draft?.hasToughness ?? true)
+  const [buffs, setBuffs] = useState(draft?.buffs ?? DEFAULT_BUFFS)
+  const [presetId, setPresetId] = useState('')
+  const [shareMsg, setShareMsg] = useState('')
 
   const template = ENEMY_TEMPLATES.find((t) => t.id === templateId) ?? ENEMY_TEMPLATES[0]
+
+  const shareState: ShareState = useMemo(
+    () => ({
+      critMode,
+      templateId,
+      attacker,
+      enemyLevel,
+      enemyDef,
+      hasToughness,
+      enemyResPct,
+      buffs,
+    }),
+    [attacker, buffs, critMode, enemyDef, enemyLevel, enemyResPct, hasToughness, templateId],
+  )
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(shareState))
+    } catch {
+      /* ignore quota */
+    }
+  }, [shareState])
 
   const onTemplateChange = (id: string) => {
     setTemplateId(id)
@@ -62,6 +118,35 @@ export function Calculator() {
     setEnemyResPct(next.resistance * 100)
     setHasToughness(next.hasToughness)
     setEnemyDef(next.defense ?? '')
+  }
+
+  const applyPreset = (id: string) => {
+    setPresetId(id)
+    const preset = CHARACTER_PRESETS.find((p) => p.id === id)
+    if (!preset) return
+    const a = preset.attacker
+    setAttacker({
+      level: a.level,
+      attributeValue: a.attributeValue,
+      baseMultiplierPct: a.baseMultiplier * 100,
+      multiplierBonusPct: a.multiplierBonus * 100,
+      critRatePct: a.critRate * 100,
+      critDamagePct: a.critDamage * 100,
+      damageBonusPct: a.damageBonus * 100,
+      resPenPct: a.resPen * 100,
+      defIgnorePct: a.defIgnore * 100,
+    })
+  }
+
+  const copyShareLink = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?c=${encodeShare(shareState)}#/`
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareMsg('链接已复制')
+    } catch {
+      setShareMsg('复制失败，请手动复制地址栏')
+    }
+    window.setTimeout(() => setShareMsg(''), 2000)
   }
 
   const input: DamageInput = useMemo(() => {
@@ -116,7 +201,32 @@ export function Calculator() {
         <h2 id={`${formId}-hunt`} className="nb-panel__title">
           输入面板
         </h2>
-        <p className="nb-panel__hint">填面板与倍率。Buff 按乘区分块勾选。</p>
+        <p className="nb-panel__hint">填面板与倍率。可用预设填充，或复制分享链接。</p>
+
+        <div className="nb-section">
+          <div className="nb-section__label">预设填充</div>
+          <div className="nb-field">
+            <label htmlFor={`${formId}-preset`}>主 C 预设</label>
+            <select
+              id={`${formId}-preset`}
+              value={presetId}
+              onChange={(e) => applyPreset(e.target.value)}
+            >
+              <option value="">— 手动输入 / 不选 —</option>
+              {CHARACTER_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="nb-share-row">
+            <button type="button" className="nb-btn" onClick={() => void copyShareLink()}>
+              复制分享链接
+            </button>
+            {shareMsg && <span className="nb-share-msg">{shareMsg}</span>}
+          </div>
+        </div>
 
         <div className="nb-section">
           <div className="nb-section__label">暴击模式</div>
