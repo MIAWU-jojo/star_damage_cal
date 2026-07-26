@@ -1,0 +1,5 @@
+{
+  "name": "star_damage_cal",
+  "install": "./scripts/verify-env.sh",
+  "terminals": []
+}
