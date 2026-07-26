@@ -24,6 +24,8 @@ export interface SupportPreset {
   element: string
   /** Survival-slot warning only — does not score damage. */
   isSurvival: boolean
+  /** Can implant / force a weakness (e.g. Silver Wolf) — used by weakness filters. */
+  implantsWeakness?: boolean
   note: string
   buffs: SupportBuffs
   /** Which zones this support primarily fills (for coverage UI). */
@@ -127,7 +129,8 @@ export const SUPPORT_PRESETS: SupportPreset[] = [
     role: 'nihility',
     element: '量子',
     isSurvival: false,
-    note: '减防 + 降抗（简化）',
+    implantsWeakness: true,
+    note: '减防 + 降抗 + 植入弱点（简化）',
     buffs: {
       damageBonus: 0,
       vulnerability: 0,
@@ -233,4 +236,17 @@ export const SUPPORT_PRESETS: SupportPreset[] = [
 
 export function getSupport(id: string): SupportPreset | undefined {
   return SUPPORT_PRESETS.find((s) => s.id === id)
+}
+
+/**
+ * Weakness constraint: keep supports whose element is in the weakness set,
+ * or who can implant weakness. Empty weakness set → no filter.
+ */
+export function matchesWeaknessConstraint(
+  support: SupportPreset,
+  weaknesses: string[],
+): boolean {
+  if (weaknesses.length === 0) return true
+  if (support.implantsWeakness) return true
+  return weaknesses.includes(support.element)
 }

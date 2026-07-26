@@ -1,8 +1,20 @@
 import { useEffect, useId, useMemo, useState, type ChangeEvent } from 'react'
 import { calculateDamage } from '../engine/damage'
+import { mergeCombatLayers, type BuffLayer } from '../engine/buffSources'
 import type { CritMode, DamageInput } from '../engine/types'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
 import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
+import {
+  LIGHT_CONE_PRESETS,
+  getLightCone,
+  lightConeToLayer,
+} from '../data/lightConePresets'
+import {
+  cavernRelics,
+  getRelic,
+  planarRelics,
+  relicToLayer,
+} from '../data/relicPresets'
 
 function pctToRate(pct: number): number {
   return pct / 100
@@ -51,9 +63,12 @@ type ShareState = {
   enemyResPct: number
   hasToughness: boolean
   buffs: typeof DEFAULT_BUFFS
+  lightConeId: string
+  cavernId: string
+  planarId: string
 }
 
-const STORAGE_KEY = 'star-damage-cal:draft-v1'
+const STORAGE_KEY = 'star-damage-cal:draft-v2'
 
 function loadDraft(): Partial<ShareState> | null {
   try {
@@ -84,6 +99,9 @@ export function Calculator() {
   const [hasToughness, setHasToughness] = useState(draft?.hasToughness ?? true)
   const [buffs, setBuffs] = useState(draft?.buffs ?? DEFAULT_BUFFS)
   const [presetId, setPresetId] = useState('')
+  const [lightConeId, setLightConeId] = useState(draft?.lightConeId ?? 'none')
+  const [cavernId, setCavernId] = useState(draft?.cavernId ?? 'none-cavern')
+  const [planarId, setPlanarId] = useState(draft?.planarId ?? 'none-planar')
   const [shareMsg, setShareMsg] = useState('')
 
   const template = ENEMY_TEMPLATES.find((t) => t.id === templateId) ?? ENEMY_TEMPLATES[0]
@@ -98,8 +116,23 @@ export function Calculator() {
       hasToughness,
       enemyResPct,
       buffs,
+      lightConeId,
+      cavernId,
+      planarId,
     }),
-    [attacker, buffs, critMode, enemyDef, enemyLevel, enemyResPct, hasToughness, templateId],
+    [
+      attacker,
+      buffs,
+      cavernId,
+      critMode,
+      enemyDef,
+      enemyLevel,
+      enemyResPct,
+      hasToughness,
+      lightConeId,
+      planarId,
+      templateId,
+    ],
   )
 
   useEffect(() => {
@@ -149,13 +182,32 @@ export function Calculator() {
     window.setTimeout(() => setShareMsg(''), 2000)
   }
 
-  const input: DamageInput = useMemo(() => {
+  const gearLayers: BuffLayer[] = useMemo(() => {
+    const layers: BuffLayer[] = []
+    const cone = getLightCone(lightConeId)
+    if (cone) {
+      const layer = lightConeToLayer(cone)
+      if (layer) layers.push(layer)
+    }
+    const cavern = getRelic(cavernId)
+    if (cavern) {
+      const layer = relicToLayer(cavern)
+      if (layer) layers.push(layer)
+    }
+    const planar = getRelic(planarId)
+    if (planar) {
+      const layer = relicToLayer(planar)
+      if (layer) layers.push(layer)
+    }
+    return layers
+  }, [cavernId, lightConeId, planarId])
+
+  const merged = useMemo(() => {
     const damageTakenReductions: number[] = []
     if (buffs.weakenPct > 0) damageTakenReductions.push(pctToRate(buffs.weakenPct))
 
-    return {
-      critMode,
-      attacker: {
+    return mergeCombatLayers({
+      baseAttacker: {
         level: attacker.level,
         attributeValue: attacker.attributeValue,
         baseMultiplier: pctToRate(attacker.baseMultiplierPct),
@@ -166,20 +218,30 @@ export function Calculator() {
         resPen: pctToRate(attacker.resPenPct),
         defIgnore: pctToRate(attacker.defIgnorePct),
       },
+      baseBuffs: {
+        vulnerability: pctToRate(buffs.vulnerabilityPct),
+        defReduction: pctToRate(buffs.defReductionPct),
+        resReduction: pctToRate(buffs.resReductionPct),
+        damageTakenReductions,
+      },
+      layers: gearLayers,
+    })
+  }, [attacker, buffs, gearLayers])
+
+  const input: DamageInput = useMemo(
+    () => ({
+      critMode,
+      attacker: merged.attacker,
       defender: {
         level: enemyLevel,
         defense: enemyDef === '' ? undefined : Number(enemyDef),
         resistance: pctToRate(enemyResPct),
         hasToughness,
       },
-      buffs: {
-        vulnerability: pctToRate(buffs.vulnerabilityPct),
-        defReduction: pctToRate(buffs.defReductionPct),
-        resReduction: pctToRate(buffs.resReductionPct),
-        damageTakenReductions,
-      },
-    }
-  }, [attacker, buffs, critMode, enemyDef, enemyLevel, enemyResPct, hasToughness])
+      buffs: merged.buffs,
+    }),
+    [critMode, enemyDef, enemyLevel, enemyResPct, hasToughness, merged],
+  )
 
   const result = useMemo(() => calculateDamage(input), [input])
 
@@ -195,13 +257,19 @@ export function Calculator() {
       setBuffs((prev) => ({ ...prev, [key]: Number(e.target.value) }))
     }
 
+  const coneNote = getLightCone(lightConeId)?.note
+  const cavernNote = getRelic(cavernId)?.note
+  const planarNote = getRelic(planarId)?.note
+
   return (
     <div className="nb-layout">
       <section className="nb-panel" aria-labelledby={`${formId}-hunt`}>
         <h2 id={`${formId}-hunt`} className="nb-panel__title">
           输入面板
         </h2>
-        <p className="nb-panel__hint">填面板与倍率。可用预设填充，或复制分享链接。</p>
+        <p className="nb-panel__hint">
+          面板 / 光锥 / 遗器分来源叠加。若面板已含套装或光锥效果，对应项选「已计入」。
+        </p>
 
         <div className="nb-section">
           <div className="nb-section__label">预设填充</div>
@@ -229,6 +297,60 @@ export function Calculator() {
         </div>
 
         <div className="nb-section">
+          <div className="nb-section__label">光锥 / 遗器（分层）</div>
+          <div className="nb-field">
+            <label htmlFor={`${formId}-cone`}>光锥</label>
+            <select
+              id={`${formId}-cone`}
+              value={lightConeId}
+              onChange={(e) => setLightConeId(e.target.value)}
+            >
+              {LIGHT_CONE_PRESETS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} · {c.path}
+                </option>
+              ))}
+            </select>
+          </div>
+          {coneNote && <p className="nb-template-note">{coneNote}</p>}
+          <div className="nb-grid" style={{ marginTop: '0.75rem' }}>
+            <div className="nb-field">
+              <label htmlFor={`${formId}-cavern`}>洞窟套装</label>
+              <select
+                id={`${formId}-cavern`}
+                value={cavernId}
+                onChange={(e) => setCavernId(e.target.value)}
+              >
+                {cavernRelics().map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="nb-field">
+              <label htmlFor={`${formId}-planar`}>位面饰品</label>
+              <select
+                id={`${formId}-planar`}
+                value={planarId}
+                onChange={(e) => setPlanarId(e.target.value)}
+              >
+                {planarRelics().map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {(cavernNote || planarNote) && (
+            <p className="nb-template-note">
+              {[cavernNote, planarNote].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+
+        <div className="nb-section">
           <div className="nb-section__label">暴击模式</div>
           <div className="nb-mode" role="group" aria-label="暴击模式">
             {(
@@ -251,7 +373,7 @@ export function Calculator() {
         </div>
 
         <div className="nb-section">
-          <div className="nb-section__label">攻击方</div>
+          <div className="nb-section__label">攻击方（角色面板）</div>
           <div className="nb-grid">
             <div className="nb-field">
               <label htmlFor={`${formId}-lv`}>等级</label>
@@ -414,7 +536,7 @@ export function Calculator() {
         </div>
 
         <div className="nb-section">
-          <div className="nb-section__label">乘区 Buff</div>
+          <div className="nb-section__label">手动乘区 Buff</div>
           <div className="nb-grid">
             <div className="nb-field">
               <label htmlFor={`${formId}-vuln`}>易伤 %</label>
@@ -466,7 +588,7 @@ export function Calculator() {
         <h2 id={`${formId}-prey`} className="nb-panel__title">
           结果拆解
         </h2>
-        <p className="nb-panel__hint">最终伤害 + 乘区对照，一眼看清短板。</p>
+        <p className="nb-panel__hint">最终伤害 + 乘区对照 + 来源标签。</p>
 
         <div className="nb-damage">
           <span className="nb-damage__label">最终伤害</span>
@@ -493,6 +615,17 @@ export function Calculator() {
             <strong>×{result.resistanceZone.toFixed(3)}</strong>
           </div>
         </div>
+
+        <div className="nb-section__label">Buff 来源</div>
+        <ul className="nb-sources">
+          {merged.sources.map((s) => (
+            <li key={`${s.kind}-${s.id}`}>
+              <span className={`nb-source-tag is-${s.kind}`}>{s.kind}</span>
+              {s.name}
+              {s.parts.length > 0 ? ` — ${s.parts.join(' · ')}` : ''}
+            </li>
+          ))}
+        </ul>
 
         <div className="nb-section__label">乘区拆解</div>
         <div className="nb-zones">

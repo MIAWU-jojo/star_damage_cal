@@ -635,9 +635,52 @@ select {
 }
 
 .nb-sources {
-  margin: 0;
-  padding-left: 1.1rem;
+  margin: 0 0 var(--space-4);
+  padding-left: 0;
+  list-style: none;
   font-size: 0.92rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.nb-sources li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border: var(--border-strong);
+  background: #fff;
+  box-shadow: 2px 2px 0 var(--nb-black);
+}
+
+.nb-source-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.12rem 0.35rem;
+  border: 2px solid var(--nb-black);
+  flex-shrink: 0;
+}
+
+.nb-source-tag.is-character {
+  background: var(--nb-cream);
+}
+
+.nb-source-tag.is-lightCone {
+  background: var(--nb-sky);
+}
+
+.nb-source-tag.is-relic {
+  background: var(--nb-mint);
+}
+
+.nb-source-tag.is-manual {
+  background: var(--nb-coral);
 }
 
 .nb-formula__hero {

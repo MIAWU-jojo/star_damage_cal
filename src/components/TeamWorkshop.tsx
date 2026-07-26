@@ -1,7 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CHARACTER_PRESETS } from '../data/characterPresets'
-import { ENEMY_TEMPLATES } from '../data/enemyTemplates'
-import { SUPPORT_PRESETS, getSupport, type SupportPreset } from '../data/supportPresets'
+import {
+  ELEMENTS,
+  ENEMY_TEMPLATES,
+  type Element,
+} from '../data/enemyTemplates'
+import {
+  SUPPORT_PRESETS,
+  getSupport,
+  matchesWeaknessConstraint,
+  type SupportPreset,
+} from '../data/supportPresets'
 import {
   aggregateSupports,
   buildCoverage,
@@ -40,9 +49,17 @@ export function TeamWorkshop() {
   const [poolIds, setPoolIds] = useState<string[]>(() =>
     SUPPORT_PRESETS.filter((s) => !DEFAULT_TEAM_IDS.includes(s.id)).map((s) => s.id),
   )
+  const [weaknesses, setWeaknesses] = useState<Element[]>(
+    () => [...ENEMY_TEMPLATES[0].weaknesses],
+  )
+  const [filterByWeakness, setFilterByWeakness] = useState(false)
 
   const carry = CHARACTER_PRESETS.find((c) => c.id === carryId) ?? CHARACTER_PRESETS[0]
   const enemy = ENEMY_TEMPLATES.find((e) => e.id === enemyId) ?? ENEMY_TEMPLATES[0]
+
+  useEffect(() => {
+    setWeaknesses([...enemy.weaknesses])
+  }, [enemy])
 
   const team = useMemo(
     () =>
@@ -52,12 +69,18 @@ export function TeamWorkshop() {
     [slotIds],
   )
 
+  const visibleSupports = useMemo(() => {
+    if (!filterByWeakness) return SUPPORT_PRESETS
+    return SUPPORT_PRESETS.filter((s) => matchesWeaknessConstraint(s, weaknesses))
+  }, [filterByWeakness, weaknesses])
+
   const pool = useMemo(
     () =>
       poolIds
         .map((id) => getSupport(id))
-        .filter((s): s is SupportPreset => Boolean(s)),
-    [poolIds],
+        .filter((s): s is SupportPreset => Boolean(s))
+        .filter((s) => !filterByWeakness || matchesWeaknessConstraint(s, weaknesses)),
+    [filterByWeakness, poolIds, weaknesses],
   )
 
   const agg = useMemo(() => aggregateSupports(team), [team])
@@ -114,6 +137,12 @@ export function TeamWorkshop() {
     setPoolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
+  const toggleWeakness = (el: Element) => {
+    setWeaknesses((prev) =>
+      prev.includes(el) ? prev.filter((x) => x !== el) : [...prev, el],
+    )
+  }
+
   return (
     <div className="nb-layout">
       <section className="nb-panel">
@@ -162,6 +191,33 @@ export function TeamWorkshop() {
         </div>
 
         <div className="nb-section">
+          <div className="nb-section__label">属性弱点</div>
+          <div className="nb-pool" role="group" aria-label="敌人弱点">
+            {ELEMENTS.map((el) => {
+              const on = weaknesses.includes(el)
+              return (
+                <label key={el} className={`nb-pool__item${on ? ' is-on' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggleWeakness(el)}
+                  />
+                  <span>{el}</span>
+                </label>
+              )
+            })}
+          </div>
+          <label className="nb-check" style={{ marginTop: '0.75rem' }}>
+            <input
+              type="checkbox"
+              checked={filterByWeakness}
+              onChange={(e) => setFilterByWeakness(e.target.checked)}
+            />
+            仅显示同属性 / 可植入弱点的辅助（候选池与替换搜索）
+          </label>
+        </div>
+
+        <div className="nb-section">
           <div className="nb-section__label">当前三人辅</div>
           <div className="nb-grid">
             {slotIds.map((id, index) => (
@@ -180,6 +236,7 @@ export function TeamWorkshop() {
                     >
                       {s.name}
                       {s.isSurvival ? '（生存）' : ''}
+                      {s.implantsWeakness ? '（植入）' : ''}
                     </option>
                   ))}
                 </select>
@@ -197,23 +254,33 @@ export function TeamWorkshop() {
         <div className="nb-section">
           <div className="nb-section__label">候选池（勾选才参与替换搜索）</div>
           <div className="nb-pool">
-            {SUPPORT_PRESETS.filter((s) => !slotIds.includes(s.id)).map((s) => {
-              const checked = poolIds.includes(s.id)
-              return (
-                <label key={s.id} className={`nb-pool__item${checked ? ' is-on' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => togglePool(s.id)}
-                  />
-                  <span>
-                    {s.name}
-                    {s.isSurvival ? ' · 生存' : ''}
-                  </span>
-                </label>
-              )
-            })}
+            {visibleSupports
+              .filter((s) => !slotIds.includes(s.id))
+              .map((s) => {
+                const checked = poolIds.includes(s.id)
+                return (
+                  <label key={s.id} className={`nb-pool__item${checked ? ' is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePool(s.id)}
+                    />
+                    <span>
+                      {s.name}
+                      {s.isSurvival ? ' · 生存' : ''}
+                      {s.implantsWeakness ? ' · 植入' : ''}
+                      {` · ${s.element}`}
+                    </span>
+                  </label>
+                )
+              })}
           </div>
+          {filterByWeakness && visibleSupports.length < SUPPORT_PRESETS.length && (
+            <p className="nb-template-note">
+              弱点过滤已开启：隐藏 {SUPPORT_PRESETS.length - visibleSupports.length}{' '}
+              名不符属性的辅助。
+            </p>
+          )}
         </div>
       </section>
 
